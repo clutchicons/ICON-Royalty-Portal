@@ -373,11 +373,93 @@
             .stats-grid {
                 grid-template-columns: 1fr;
             }
-            
+
             .month-chart {
                 height: 200px;
             }
         }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 10% auto;
+            padding: 40px;
+            border-radius: 15px;
+            max-width: 500px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            animation: slideDown 0.3s;
+        }
+
+        @keyframes slideDown {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .modal-header {
+            font-size: 1.8em;
+            color: #0b1215;
+            margin-bottom: 10px;
+        }
+
+        .modal-subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .close {
+            color: #999;
+            float: right;
+            font-size: 32px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 20px;
+            transition: color 0.2s;
+        }
+
+        .close:hover {
+            color: #333;
+        }
+
+        .change-password-btn {
+            background: #28a745;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-left: 10px;
+            transition: transform 0.2s;
+        }
+
+        .change-password-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .password-strength {
+            margin-top: 8px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .strength-weak { color: #dc3545; }
+        .strength-medium { color: #ffc107; }
+        .strength-strong { color: #28a745; }
     </style>
 </head>
 <body>
@@ -427,6 +509,7 @@
         
         <div id="dashboard" class="dashboard">
             <div class="header">
+                <button class="change-password-btn" onclick="openPasswordModal()">Change Password</button>
                 <button class="logout-btn" onclick="logout()">Logout</button>
                 <h1>Welcome, <span id="athleteName"></span>!</h1>
                 <p class="subtitle">Your Royalty Dashboard</p>
@@ -503,8 +586,57 @@
                 <button class="export-btn" onclick="exportData()">📥 Export My Data</button>
             </div>
         </div>
+
+        <!-- Password Change Modal -->
+        <div id="passwordModal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closePasswordModal()">&times;</span>
+                <h2 class="modal-header">Change Password</h2>
+                <p class="modal-subtitle">Create a new password for your account</p>
+
+                <div class="form-group">
+                    <label for="currentPassword">Current Password</label>
+                    <input type="password" id="currentPassword" placeholder="Enter current password">
+                </div>
+
+                <div class="form-group">
+                    <label for="newPassword">New Password</label>
+                    <input type="password" id="newPassword" placeholder="Enter new password" oninput="checkPasswordStrength()">
+                    <div id="passwordStrength" class="password-strength"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="confirmPassword">Confirm New Password</label>
+                    <input type="password" id="confirmPassword" placeholder="Confirm new password">
+                </div>
+
+                <button class="btn" onclick="changePassword()" style="margin-top: 20px;">Update Password</button>
+            </div>
+        </div>
+
+        <!-- First Login Modal -->
+        <div id="firstLoginModal" class="modal">
+            <div class="modal-content">
+                <h2 class="modal-header">Welcome!</h2>
+                <p class="modal-subtitle">For security, please change your default password</p>
+
+                <div class="form-group">
+                    <label for="firstLoginNewPassword">New Password</label>
+                    <input type="password" id="firstLoginNewPassword" placeholder="Enter new password" oninput="checkFirstLoginPasswordStrength()">
+                    <div id="firstLoginPasswordStrength" class="password-strength"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="firstLoginConfirmPassword">Confirm New Password</label>
+                    <input type="password" id="firstLoginConfirmPassword" placeholder="Confirm new password">
+                </div>
+
+                <button class="btn" onclick="setFirstPassword()" style="margin-top: 20px;">Set Password</button>
+                <button class="btn" onclick="skipPasswordChange()" style="margin-top: 10px; background: #6c757d;">Skip for Now</button>
+            </div>
+        </div>
     </div>
-    
+
     <script>
         let allData = [];
         let athleteData = {};
@@ -512,11 +644,176 @@
         let currentAthlete = '';
         let selectedSuggestionIndex = -1;
         let athletesList = [];
-        
+        let usedDefaultPassword = false;
+
         const CONFIG = {
             dataUrl: 'royalty_data.csv',
             codesUrl: 'access_codes.json'
         };
+
+        // Password Management Functions
+        function getStoredPassword(athleteName) {
+            const passwords = JSON.parse(localStorage.getItem('iconPasswords') || '{}');
+            return passwords[athleteName];
+        }
+
+        function setStoredPassword(athleteName, password) {
+            const passwords = JSON.parse(localStorage.getItem('iconPasswords') || '{}');
+            passwords[athleteName] = password;
+            localStorage.setItem('iconPasswords', JSON.stringify(passwords));
+        }
+
+        function checkPasswordStrength() {
+            const password = document.getElementById('newPassword').value;
+            const strengthDiv = document.getElementById('passwordStrength');
+
+            if (password.length === 0) {
+                strengthDiv.textContent = '';
+                return;
+            }
+
+            let strength = 0;
+            if (password.length >= 8) strength++;
+            if (password.length >= 12) strength++;
+            if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength++;
+            if (/[0-9]/.test(password)) strength++;
+            if (/[^a-zA-Z0-9]/.test(password)) strength++;
+
+            if (strength < 3) {
+                strengthDiv.textContent = 'Weak password';
+                strengthDiv.className = 'password-strength strength-weak';
+            } else if (strength < 5) {
+                strengthDiv.textContent = 'Medium password';
+                strengthDiv.className = 'password-strength strength-medium';
+            } else {
+                strengthDiv.textContent = 'Strong password';
+                strengthDiv.className = 'password-strength strength-strong';
+            }
+        }
+
+        function checkFirstLoginPasswordStrength() {
+            const password = document.getElementById('firstLoginNewPassword').value;
+            const strengthDiv = document.getElementById('firstLoginPasswordStrength');
+
+            if (password.length === 0) {
+                strengthDiv.textContent = '';
+                return;
+            }
+
+            let strength = 0;
+            if (password.length >= 8) strength++;
+            if (password.length >= 12) strength++;
+            if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength++;
+            if (/[0-9]/.test(password)) strength++;
+            if (/[^a-zA-Z0-9]/.test(password)) strength++;
+
+            if (strength < 3) {
+                strengthDiv.textContent = 'Weak password';
+                strengthDiv.className = 'password-strength strength-weak';
+            } else if (strength < 5) {
+                strengthDiv.textContent = 'Medium password';
+                strengthDiv.className = 'password-strength strength-medium';
+            } else {
+                strengthDiv.textContent = 'Strong password';
+                strengthDiv.className = 'password-strength strength-strong';
+            }
+        }
+
+        function openPasswordModal() {
+            document.getElementById('passwordModal').style.display = 'block';
+            document.getElementById('currentPassword').value = '';
+            document.getElementById('newPassword').value = '';
+            document.getElementById('confirmPassword').value = '';
+            document.getElementById('passwordStrength').textContent = '';
+        }
+
+        function closePasswordModal() {
+            document.getElementById('passwordModal').style.display = 'none';
+        }
+
+        function openFirstLoginModal() {
+            document.getElementById('firstLoginModal').style.display = 'block';
+            document.getElementById('firstLoginNewPassword').value = '';
+            document.getElementById('firstLoginConfirmPassword').value = '';
+            document.getElementById('firstLoginPasswordStrength').textContent = '';
+        }
+
+        function closeFirstLoginModal() {
+            document.getElementById('firstLoginModal').style.display = 'none';
+        }
+
+        function skipPasswordChange() {
+            closeFirstLoginModal();
+        }
+
+        function setFirstPassword() {
+            const newPassword = document.getElementById('firstLoginNewPassword').value;
+            const confirmPassword = document.getElementById('firstLoginConfirmPassword').value;
+
+            if (!newPassword || !confirmPassword) {
+                alert('Please fill in all fields');
+                return;
+            }
+
+            if (newPassword.length < 6) {
+                alert('Password must be at least 6 characters long');
+                return;
+            }
+
+            if (newPassword !== confirmPassword) {
+                alert('Passwords do not match');
+                return;
+            }
+
+            setStoredPassword(currentAthlete, newPassword);
+            alert('Password changed successfully!');
+            closeFirstLoginModal();
+        }
+
+        function changePassword() {
+            const currentPassword = document.getElementById('currentPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            if (!currentPassword || !newPassword || !confirmPassword) {
+                alert('Please fill in all fields');
+                return;
+            }
+
+            // Verify current password
+            const storedPassword = getStoredPassword(currentAthlete);
+            const defaultPassword = accessCodes[currentAthlete];
+            const adminPassword = 'ADMIN2025';
+
+            const isCurrentPasswordCorrect =
+                currentPassword === storedPassword ||
+                currentPassword === defaultPassword ||
+                (currentAthlete === 'ALL' && currentPassword === adminPassword);
+
+            if (!isCurrentPasswordCorrect) {
+                alert('Current password is incorrect');
+                return;
+            }
+
+            if (newPassword.length < 6) {
+                alert('New password must be at least 6 characters long');
+                return;
+            }
+
+            if (newPassword !== confirmPassword) {
+                alert('New passwords do not match');
+                return;
+            }
+
+            if (newPassword === defaultPassword) {
+                alert('New password cannot be the same as the default password');
+                return;
+            }
+
+            setStoredPassword(currentAthlete, newPassword);
+            alert('Password changed successfully!');
+            closePasswordModal();
+        }
         
         window.onload = async function() {
             try {
@@ -701,45 +998,67 @@
         function login() {
             const athleteName = document.getElementById('athleteSearch').value.trim();
             const code = document.getElementById('accessCode').value.trim();
-            
-            let exactMatch = athletesList.find(a => 
+
+            let exactMatch = athletesList.find(a =>
                 a.toLowerCase() === athleteName.toLowerCase()
             );
-            
+
             if (!exactMatch) {
                 alert('ICON not found. Please select from the suggestions.');
                 return;
             }
-            
+
             const isAdmin = exactMatch === 'Admin (View All)';
-            const ADMIN_PASSWORD = 'ADMIN2024';
-            
+            const ADMIN_PASSWORD = 'ADMIN2025';
+
+            // Check for stored custom password first
+            const storedPassword = getStoredPassword(exactMatch);
+            const defaultPassword = accessCodes[exactMatch];
+
             const isUsingAdminPassword = code === ADMIN_PASSWORD;
-            
+
             if (isAdmin) {
-                if (isUsingAdminPassword) {
+                if (isUsingAdminPassword || (storedPassword && code === storedPassword)) {
                     currentAthlete = 'ALL';
+                    usedDefaultPassword = (code === ADMIN_PASSWORD && !storedPassword);
                     showDashboard('Admin');
+                    if (usedDefaultPassword) {
+                        setTimeout(() => openFirstLoginModal(), 500);
+                    }
                     return;
                 } else {
                     alert('Invalid admin access code.');
                     return;
                 }
             }
-            
-            if (isUsingAdminPassword) {
+
+            // Check if using stored custom password
+            if (storedPassword && code === storedPassword) {
                 currentAthlete = exactMatch;
+                usedDefaultPassword = false;
                 showDashboard(exactMatch);
                 return;
             }
-            
-            if (accessCodes[exactMatch] !== code) {
-                alert('Invalid access code. Please try again.');
+
+            // Allow admin password for all users
+            if (isUsingAdminPassword) {
+                currentAthlete = exactMatch;
+                usedDefaultPassword = false;
+                showDashboard(exactMatch);
                 return;
             }
-            
-            currentAthlete = exactMatch;
-            showDashboard(exactMatch);
+
+            // Check default password
+            if (defaultPassword === code) {
+                currentAthlete = exactMatch;
+                usedDefaultPassword = true;
+                showDashboard(exactMatch);
+                // Prompt to change password after first login
+                setTimeout(() => openFirstLoginModal(), 500);
+                return;
+            }
+
+            alert('Invalid access code. Please try again.');
         }
         
         function calculateRoyalty(row) {
@@ -957,6 +1276,19 @@
             document.getElementById('loadingSection').style.display = 'none';
             document.getElementById('errorSection').style.display = 'block';
             document.getElementById('errorMessage').textContent = message;
+        }
+
+        // Close modals when clicking outside of them
+        window.onclick = function(event) {
+            const passwordModal = document.getElementById('passwordModal');
+            const firstLoginModal = document.getElementById('firstLoginModal');
+
+            if (event.target === passwordModal) {
+                closePasswordModal();
+            }
+            if (event.target === firstLoginModal && !usedDefaultPassword) {
+                closeFirstLoginModal();
+            }
         }
     </script>
 </body>
