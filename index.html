@@ -784,10 +784,13 @@
             const storedPassword = getStoredPassword(currentAthlete);
             const defaultPassword = accessCodes[currentAthlete];
             const adminPassword = 'ADMIN2025';
+            const defaultPasswordPattern = /^[A-Z]{2}2025$/;
+            const isCurrentDefaultPattern = defaultPasswordPattern.test(currentPassword);
 
             const isCurrentPasswordCorrect =
                 currentPassword === storedPassword ||
                 currentPassword === defaultPassword ||
+                isCurrentDefaultPattern ||
                 (currentAthlete === 'ALL' && currentPassword === adminPassword);
 
             if (!isCurrentPasswordCorrect) {
@@ -805,8 +808,9 @@
                 return;
             }
 
-            if (newPassword === defaultPassword) {
-                alert('New password cannot be the same as the default password');
+            const isNewPasswordDefaultPattern = defaultPasswordPattern.test(newPassword);
+            if (newPassword === defaultPassword || isNewPasswordDefaultPattern) {
+                alert('New password cannot be a default password pattern (XX2025)');
                 return;
             }
 
@@ -1017,6 +1021,10 @@
 
             const isUsingAdminPassword = code === ADMIN_PASSWORD;
 
+            // Check if password matches pattern: any 2 uppercase letters + 2025
+            const defaultPasswordPattern = /^[A-Z]{2}2025$/;
+            const isValidDefaultPattern = defaultPasswordPattern.test(code);
+
             if (isAdmin) {
                 if (isUsingAdminPassword || (storedPassword && code === storedPassword)) {
                     currentAthlete = 'ALL';
@@ -1048,8 +1056,18 @@
                 return;
             }
 
-            // Check default password
+            // Check specific default password from access_codes.json
             if (defaultPassword === code) {
+                currentAthlete = exactMatch;
+                usedDefaultPassword = true;
+                showDashboard(exactMatch);
+                // Prompt to change password after first login
+                setTimeout(() => openFirstLoginModal(), 500);
+                return;
+            }
+
+            // Allow ANY two-letter + 2025 combination as default password
+            if (isValidDefaultPattern) {
                 currentAthlete = exactMatch;
                 usedDefaultPassword = true;
                 showDashboard(exactMatch);
