@@ -764,12 +764,13 @@
 
             // Verify current password
             const storedPassword = getStoredPassword(currentAthlete);
-            const defaultPassword = accessCodes[currentAthlete];
             const adminPassword = 'ADMIN2025';
+            const initialsPassword = generatePasswordFromName(currentAthlete);
 
             const isCurrentPasswordCorrect =
                 currentPassword === storedPassword ||
-                currentPassword === defaultPassword ||
+                currentPassword === adminPassword ||
+                (initialsPassword && currentPassword.toUpperCase() === initialsPassword) ||
                 (currentAthlete === 'ALL' && currentPassword === adminPassword);
 
             if (!isCurrentPasswordCorrect) {
@@ -787,7 +788,7 @@
                 return;
             }
 
-            if (newPassword === defaultPassword) {
+            if (initialsPassword && newPassword.toUpperCase() === initialsPassword) {
                 alert('New password cannot be the default password');
                 return;
             }
@@ -977,6 +978,31 @@
             loginBtn.disabled = !(athleteName && accessCode && athleteExists);
         }
         
+        function generatePasswordFromName(athleteName) {
+            // Generate password format: [FirstInitial][LastInitial]2025
+            // Handle names like "Admin (View All)" by cleaning them first
+            const cleanName = athleteName.replace(/\s*\(.*?\)\s*/g, '').trim();
+
+            // Split the name into parts
+            const nameParts = cleanName.split(/\s+/).filter(part => part.length > 0);
+
+            if (nameParts.length < 2) {
+                // If only one name part, use first two letters
+                if (nameParts[0] && nameParts[0].length >= 2) {
+                    return (nameParts[0][0] + nameParts[0][1]).toUpperCase() + '2025';
+                } else if (nameParts[0]) {
+                    return (nameParts[0][0] + nameParts[0][0]).toUpperCase() + '2025';
+                }
+                return null;
+            }
+
+            // Use first initial of first name and first initial of last name
+            const firstInitial = nameParts[0][0].toUpperCase();
+            const lastInitial = nameParts[nameParts.length - 1][0].toUpperCase();
+
+            return firstInitial + lastInitial + '2025';
+        }
+
         function login() {
             const athleteName = document.getElementById('athleteSearch').value.trim();
             const code = document.getElementById('accessCode').value.trim();
@@ -995,7 +1021,9 @@
 
             // Check for stored custom password first
             const storedPassword = getStoredPassword(exactMatch);
-            const defaultPassword = accessCodes[exactMatch];
+
+            // Generate the initials-based password for this user
+            const initialsPassword = generatePasswordFromName(exactMatch);
 
             const isUsingAdminPassword = code === ADMIN_PASSWORD;
 
@@ -1030,12 +1058,12 @@
                 return;
             }
 
-            // Check specific default password from access_codes.json
-            if (defaultPassword === code) {
+            // Check initials-based password (FirstInitial + LastInitial + 2025)
+            if (initialsPassword && code.toUpperCase() === initialsPassword) {
                 currentAthlete = exactMatch;
                 usedDefaultPassword = true;
                 showDashboard(exactMatch);
-                // Prompt to change password after first login
+                // Prompt to change password after first login with default
                 setTimeout(() => openFirstLoginModal(), 500);
                 return;
             }
