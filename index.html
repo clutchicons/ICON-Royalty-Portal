@@ -1172,9 +1172,36 @@
                 await database.ref('royaltyData').set(csvData);
                 console.log('✓ Royalty data uploaded:', csvData.length, 'records');
 
-                // Load access codes
+                // Extract unique athlete names from CSV
+                const athleteNamesInCSV = new Set();
+                csvData.forEach(row => {
+                    if (row.athlete_name && row.athlete_name.trim()) {
+                        athleteNamesInCSV.add(row.athlete_name.trim());
+                    }
+                });
+                console.log('Found', athleteNamesInCSV.size, 'unique athletes in CSV');
+
+                // Load existing access codes
                 const codesResponse = await fetch(CONFIG.codesUrl);
                 const codes = await codesResponse.json();
+
+                // Auto-generate access codes for new athletes
+                let newCodesGenerated = 0;
+                athleteNamesInCSV.forEach(athleteName => {
+                    if (!codes[athleteName]) {
+                        // Generate initials-based password for new athlete
+                        const password = generatePasswordFromName(athleteName);
+                        codes[athleteName] = password;
+                        newCodesGenerated++;
+                        console.log(`+ Generated access code for new athlete: ${athleteName} → ${password}`);
+                    }
+                });
+
+                if (newCodesGenerated > 0) {
+                    console.log('✓ Auto-generated', newCodesGenerated, 'new access codes');
+                } else {
+                    console.log('✓ No new athletes found (all have access codes)');
+                }
 
                 // Sanitize access code keys for Firebase
                 const sanitizedCodes = {};
@@ -1195,7 +1222,7 @@
                 console.log('✓ Name mapping uploaded');
 
                 console.log('✓ Migration complete!');
-                alert('Data migration to Firebase completed successfully!');
+                alert(`Data migration completed!\n\nRoyalty records: ${csvData.length}\nTotal access codes: ${Object.keys(codes).length}\nNew athletes: ${newCodesGenerated}`);
             } catch (error) {
                 console.error('Migration error:', error);
                 alert('Migration failed: ' + error.message);
