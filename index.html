@@ -572,6 +572,84 @@
                 
                 <button class="export-btn" onclick="exportData()">📥 Export My Data</button>
             </div>
+
+            <!-- Admin Tools Panel (Only visible for admins) -->
+            <div id="adminToolsPanel" style="display: none;">
+                <div class="header" style="margin-top: 40px;">
+                    <h2>🔧 Admin Tools</h2>
+                    <p class="subtitle">Manage users and view data</p>
+                </div>
+
+                <!-- User Management Section -->
+                <div class="table-container" style="margin-top: 20px;">
+                    <h3 style="margin-bottom: 15px;">👥 User Management</h3>
+
+                    <!-- User Search -->
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label for="adminUserSearch">Search User</label>
+                        <div class="search-container">
+                            <input type="text"
+                                   id="adminUserSearch"
+                                   placeholder="Type to search athletes..."
+                                   oninput="filterAdminUsers()"
+                                   style="width: 100%;">
+                            <div id="adminUserList" class="suggestions"></div>
+                        </div>
+                    </div>
+
+                    <!-- Selected User Info -->
+                    <div id="selectedUserInfo" style="display: none; padding: 20px; background: #f8f9fa; border-radius: 8px; margin-bottom: 20px;">
+                        <h4 style="margin-bottom: 15px;">Selected User: <span id="selectedUserName" style="color: #8a2be2;"></span></h4>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                            <div>
+                                <strong>Default Password:</strong> <span id="selectedUserDefaultPwd"></span>
+                            </div>
+                            <div>
+                                <strong>Has Custom Password:</strong> <span id="selectedUserHasCustomPwd"></span>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <button class="btn" onclick="resetUserPassword()" style="background: #dc3545;">
+                                🔄 Reset to Default Password
+                            </button>
+                            <button class="btn" onclick="setCustomPasswordForUser()" style="background: #28a745;">
+                                🔐 Set Custom Password
+                            </button>
+                            <button class="btn" onclick="viewUserData()" style="background: #17a2b8;">
+                                📊 View User's Data
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- All Users List -->
+                    <div style="margin-top: 30px;">
+                        <h3 style="margin-bottom: 15px;">All Users Status</h3>
+                        <div style="margin-bottom: 10px;">
+                            <label>
+                                <input type="checkbox" id="showOnlyCustomPwdUsers" onchange="refreshUserStatusTable()">
+                                Show only users with custom passwords
+                            </label>
+                        </div>
+                        <div id="allUsersTable" style="max-height: 400px; overflow-y: auto;">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Athlete Name</th>
+                                        <th>Default Password</th>
+                                        <th>Custom Password Set</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="allUsersTableBody">
+                                    <!-- Will be populated by JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Password Change Modal -->
@@ -624,6 +702,68 @@
         </div>
     </div>
 
+    <!-- Admin: Set Custom Password Modal -->
+    <div id="adminSetPasswordModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeAdminSetPasswordModal()">&times;</span>
+            <h2 class="modal-header">Set Custom Password for User</h2>
+            <p class="modal-subtitle">Set a new password for <strong><span id="adminPwdUserName"></span></strong></p>
+
+            <div class="form-group">
+                <label for="adminNewPassword">New Password</label>
+                <input type="password" id="adminNewPassword" placeholder="Enter new password">
+            </div>
+
+            <div class="form-group">
+                <label for="adminConfirmPassword">Confirm Password</label>
+                <input type="password" id="adminConfirmPassword" placeholder="Confirm password">
+            </div>
+
+            <button class="btn" onclick="confirmSetCustomPassword()">Set Password</button>
+        </div>
+    </div>
+
+    <!-- Admin: View User Data Modal -->
+    <div id="adminViewDataModal" class="modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <span class="close" onclick="closeAdminViewDataModal()">&times;</span>
+            <h2 class="modal-header">User Data: <span id="viewDataUserName"></span></h2>
+
+            <div style="margin: 20px 0;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                    <div style="padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                        <div style="font-size: 0.9em; color: #666;">Total Royalties</div>
+                        <div style="font-size: 1.8em; font-weight: bold; color: #8a2be2;" id="viewDataTotalRoyalties">$0</div>
+                    </div>
+                    <div style="padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                        <div style="font-size: 0.9em; color: #666;">Total Orders</div>
+                        <div style="font-size: 1.8em; font-weight: bold; color: #8a2be2;" id="viewDataTotalOrders">0</div>
+                    </div>
+                    <div style="padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                        <div style="font-size: 0.9em; color: #666;">Total Units</div>
+                        <div style="font-size: 1.8em; font-weight: bold; color: #8a2be2;" id="viewDataTotalUnits">0</div>
+                    </div>
+                </div>
+
+                <div id="viewDataTableContainer" style="max-height: 400px; overflow-y: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Order</th>
+                                <th>Date</th>
+                                <th>Product</th>
+                                <th>Royalty</th>
+                            </tr>
+                        </thead>
+                        <tbody id="viewDataTableBody">
+                            <!-- Will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         let allData = [];
         let athleteData = {};
@@ -632,6 +772,10 @@
         let selectedSuggestionIndex = -1;
         let athletesList = [];
         let usedDefaultPassword = false;
+
+        // Admin functionality variables
+        let selectedAdminUser = null;
+        let allCustomPasswords = {};
 
         // Firebase Configuration
         const firebaseConfig = {
@@ -654,10 +798,17 @@
             useFirebase: true // Toggle between Firebase and local files
         };
 
+        // Helper: Sanitize Firebase keys (remove invalid characters)
+        function sanitizeFirebaseKey(key) {
+            // Firebase doesn't allow: . # $ / [ ]
+            return key.replace(/[.#$\/\[\]]/g, '_');
+        }
+
         // Password Management Functions (Firebase)
         async function getStoredPassword(athleteName) {
             try {
-                const snapshot = await database.ref('customPasswords/' + athleteName).once('value');
+                const sanitizedName = sanitizeFirebaseKey(athleteName);
+                const snapshot = await database.ref('customPasswords/' + sanitizedName).once('value');
                 return snapshot.val();
             } catch (error) {
                 console.error('Error getting password:', error);
@@ -667,7 +818,8 @@
 
         async function setStoredPassword(athleteName, password) {
             try {
-                await database.ref('customPasswords/' + athleteName).set(password);
+                const sanitizedName = sanitizeFirebaseKey(athleteName);
+                await database.ref('customPasswords/' + sanitizedName).set(password);
                 console.log('Password saved to Firebase for:', athleteName);
             } catch (error) {
                 console.error('Error saving password:', error);
@@ -846,9 +998,21 @@
         async function loadAccessCodes() {
             try {
                 if (CONFIG.useFirebase) {
-                    // Load from Firebase
-                    const snapshot = await database.ref('accessCodes').once('value');
-                    accessCodes = snapshot.val() || {};
+                    // Load from Firebase (keys are sanitized)
+                    const codesSnapshot = await database.ref('accessCodes').once('value');
+                    const sanitizedCodes = codesSnapshot.val() || {};
+
+                    // Load name mapping to get original names
+                    const mappingSnapshot = await database.ref('nameMapping').once('value');
+                    const nameMapping = mappingSnapshot.val() || {};
+
+                    // Reconstruct accessCodes with original names as keys
+                    accessCodes = {};
+                    Object.keys(sanitizedCodes).forEach(sanitizedName => {
+                        const originalName = nameMapping[sanitizedName] || sanitizedName;
+                        accessCodes[originalName] = sanitizedCodes[sanitizedName];
+                    });
+
                     console.log('Access codes loaded from Firebase:', Object.keys(accessCodes).length, 'icons');
                 } else {
                     // Fallback to JSON file
@@ -929,9 +1093,23 @@
                 const codesResponse = await fetch(CONFIG.codesUrl);
                 const codes = await codesResponse.json();
 
-                // Upload access codes to Firebase
-                await database.ref('accessCodes').set(codes);
-                console.log('✓ Access codes uploaded:', Object.keys(codes).length, 'codes');
+                // Sanitize access code keys for Firebase
+                const sanitizedCodes = {};
+                const nameMapping = {}; // Store original names
+
+                Object.keys(codes).forEach(name => {
+                    const sanitizedName = sanitizeFirebaseKey(name);
+                    sanitizedCodes[sanitizedName] = codes[name];
+                    nameMapping[sanitizedName] = name; // Store original name
+                });
+
+                // Upload access codes to Firebase with sanitized keys
+                await database.ref('accessCodes').set(sanitizedCodes);
+                console.log('✓ Access codes uploaded:', Object.keys(sanitizedCodes).length, 'codes');
+
+                // Upload name mapping to Firebase
+                await database.ref('nameMapping').set(nameMapping);
+                console.log('✓ Name mapping uploaded');
 
                 console.log('✓ Migration complete!');
                 alert('Data migration to Firebase completed successfully!');
@@ -1275,8 +1453,17 @@
             
             window.tableData = data.slice().reverse();
             renderTable(window.tableData);
+
+            // Show admin tools panel if user is admin
+            if (currentAthlete === 'ALL') {
+                document.getElementById('adminToolsPanel').style.display = 'block';
+                loadAllCustomPasswords();
+                refreshUserStatusTable();
+            } else {
+                document.getElementById('adminToolsPanel').style.display = 'none';
+            }
         }
-        
+
         function renderTable(data) {
             const tbody = document.getElementById('ordersTable');
             tbody.innerHTML = '';
@@ -1363,7 +1550,249 @@
             a.click();
             window.URL.revokeObjectURL(url);
         }
-        
+
+        // ========== ADMIN FUNCTIONS ==========
+
+        // Load all custom passwords from Firebase
+        async function loadAllCustomPasswords() {
+            try {
+                const snapshot = await database.ref('customPasswords').once('value');
+                allCustomPasswords = snapshot.val() || {};
+                console.log('Loaded custom passwords for', Object.keys(allCustomPasswords).length, 'users');
+            } catch (error) {
+                console.error('Error loading custom passwords:', error);
+            }
+        }
+
+        // Filter admin user list as typing
+        function filterAdminUsers() {
+            const input = document.getElementById('adminUserSearch').value.toLowerCase();
+            const suggestionsList = document.getElementById('adminUserList');
+
+            if (!input) {
+                suggestionsList.classList.remove('active');
+                return;
+            }
+
+            const filtered = athletesList.filter(athlete =>
+                athlete !== 'Admin (View All)' && athlete.toLowerCase().includes(input)
+            ).slice(0, 10);
+
+            if (filtered.length === 0) {
+                suggestionsList.classList.remove('active');
+                return;
+            }
+
+            suggestionsList.innerHTML = filtered.map(athlete =>
+                `<div class="suggestion" onclick="selectAdminUser('${athlete.replace(/'/g, "\\'")}')">${athlete}</div>`
+            ).join('');
+
+            suggestionsList.classList.add('active');
+        }
+
+        // Select a user in admin panel
+        async function selectAdminUser(userName) {
+            selectedAdminUser = userName;
+            document.getElementById('adminUserSearch').value = userName;
+            document.getElementById('adminUserList').classList.remove('active');
+
+            // Show user info section
+            document.getElementById('selectedUserInfo').style.display = 'block';
+            document.getElementById('selectedUserName').textContent = userName;
+
+            // Get default password
+            const defaultPwd = accessCodes[userName] || generatePasswordFromName(userName);
+            document.getElementById('selectedUserDefaultPwd').textContent = defaultPwd;
+
+            // Check if user has custom password
+            const sanitizedName = sanitizeFirebaseKey(userName);
+            const hasCustomPwd = allCustomPasswords[sanitizedName] ? 'Yes ✓' : 'No';
+            document.getElementById('selectedUserHasCustomPwd').textContent = hasCustomPwd;
+            document.getElementById('selectedUserHasCustomPwd').style.color =
+                allCustomPasswords[sanitizedName] ? '#28a745' : '#dc3545';
+        }
+
+        // Reset user password to default
+        async function resetUserPassword() {
+            if (!selectedAdminUser) {
+                alert('Please select a user first');
+                return;
+            }
+
+            if (!confirm(`Reset password for ${selectedAdminUser} to their default password?`)) {
+                return;
+            }
+
+            try {
+                const sanitizedName = sanitizeFirebaseKey(selectedAdminUser);
+                await database.ref('customPasswords/' + sanitizedName).remove();
+                delete allCustomPasswords[sanitizedName];
+
+                alert(`Password reset successfully! ${selectedAdminUser} can now login with their default password.`);
+                selectAdminUser(selectedAdminUser); // Refresh display
+                refreshUserStatusTable();
+            } catch (error) {
+                console.error('Error resetting password:', error);
+                alert('Failed to reset password: ' + error.message);
+            }
+        }
+
+        // Open modal to set custom password
+        function setCustomPasswordForUser() {
+            if (!selectedAdminUser) {
+                alert('Please select a user first');
+                return;
+            }
+
+            document.getElementById('adminPwdUserName').textContent = selectedAdminUser;
+            document.getElementById('adminNewPassword').value = '';
+            document.getElementById('adminConfirmPassword').value = '';
+            document.getElementById('adminSetPasswordModal').style.display = 'block';
+        }
+
+        // Confirm and set custom password
+        async function confirmSetCustomPassword() {
+            const newPassword = document.getElementById('adminNewPassword').value;
+            const confirmPassword = document.getElementById('adminConfirmPassword').value;
+
+            if (!newPassword || !confirmPassword) {
+                alert('Please fill in all fields');
+                return;
+            }
+
+            if (newPassword.length < 6) {
+                alert('Password must be at least 6 characters long');
+                return;
+            }
+
+            if (newPassword !== confirmPassword) {
+                alert('Passwords do not match');
+                return;
+            }
+
+            try {
+                await setStoredPassword(selectedAdminUser, newPassword);
+                allCustomPasswords[sanitizeFirebaseKey(selectedAdminUser)] = newPassword;
+
+                alert(`Custom password set successfully for ${selectedAdminUser}!`);
+                closeAdminSetPasswordModal();
+                selectAdminUser(selectedAdminUser); // Refresh display
+                refreshUserStatusTable();
+            } catch (error) {
+                console.error('Error setting password:', error);
+                alert('Failed to set password: ' + error.message);
+            }
+        }
+
+        // View user's royalty data
+        function viewUserData() {
+            if (!selectedAdminUser) {
+                alert('Please select a user first');
+                return;
+            }
+
+            const userData = athleteData[selectedAdminUser] || [];
+
+            document.getElementById('viewDataUserName').textContent = selectedAdminUser;
+
+            // Calculate stats
+            let totalRoyalties = 0;
+            userData.forEach(row => {
+                const royalty = calculateRoyalty(row);
+                totalRoyalties += royalty;
+            });
+
+            document.getElementById('viewDataTotalRoyalties').textContent = `$${Math.round(totalRoyalties)}`;
+            document.getElementById('viewDataTotalOrders').textContent = userData.length;
+
+            // Count total units (could be same as orders if each row is one unit)
+            document.getElementById('viewDataTotalUnits').textContent = userData.length;
+
+            // Populate table
+            const tbody = document.getElementById('viewDataTableBody');
+            tbody.innerHTML = '';
+
+            if (userData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">No data found for this user</td></tr>';
+            } else {
+                userData.slice().reverse().forEach(row => {
+                    const date = row.created_at ? new Date(row.created_at).toLocaleDateString() : 'N/A';
+                    const productName = row.product_name || row.lineitem_name || 'Unknown';
+                    const royalty = calculateRoyalty(row);
+
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${row.order_number || 'N/A'}</td>
+                        <td>${date}</td>
+                        <td>${productName}</td>
+                        <td>$${royalty}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+
+            document.getElementById('adminViewDataModal').style.display = 'block';
+        }
+
+        // Refresh the all users status table
+        async function refreshUserStatusTable() {
+            const showOnlyCustom = document.getElementById('showOnlyCustomPwdUsers').checked;
+            const tbody = document.getElementById('allUsersTableBody');
+            tbody.innerHTML = '';
+
+            // Filter out Admin
+            const users = athletesList.filter(athlete => athlete !== 'Admin (View All)');
+
+            users.forEach(userName => {
+                const sanitizedName = sanitizeFirebaseKey(userName);
+                const hasCustomPwd = allCustomPasswords[sanitizedName];
+
+                if (showOnlyCustom && !hasCustomPwd) {
+                    return; // Skip users without custom passwords
+                }
+
+                const defaultPwd = accessCodes[userName] || generatePasswordFromName(userName);
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${userName}</td>
+                    <td><code>${defaultPwd}</code></td>
+                    <td style="color: ${hasCustomPwd ? '#28a745' : '#999'};">
+                        ${hasCustomPwd ? 'Yes ✓' : 'No'}
+                    </td>
+                    <td>
+                        <button class="btn" onclick="selectAdminUser('${userName.replace(/'/g, "\\'")}'); document.getElementById('adminUserSearch').scrollIntoView();"
+                                style="padding: 5px 10px; font-size: 0.9em;">
+                            Manage
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            if (tbody.children.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">No users found</td></tr>';
+            }
+        }
+
+        // Modal functions
+        function closeAdminSetPasswordModal() {
+            document.getElementById('adminSetPasswordModal').style.display = 'none';
+        }
+
+        function closeAdminViewDataModal() {
+            document.getElementById('adminViewDataModal').style.display = 'none';
+        }
+
+        // Close modals when clicking outside
+        window.onclick = function(event) {
+            if (event.target.classList.contains('modal')) {
+                event.target.style.display = 'none';
+            }
+        }
+
+        // ========== END ADMIN FUNCTIONS ==========
+
         function showLoading(show) {
             document.getElementById('loadingSection').style.display = show ? 'block' : 'none';
         }
