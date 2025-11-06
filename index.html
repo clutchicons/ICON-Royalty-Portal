@@ -654,10 +654,17 @@
             useFirebase: true // Toggle between Firebase and local files
         };
 
+        // Helper: Sanitize Firebase keys (remove invalid characters)
+        function sanitizeFirebaseKey(key) {
+            // Firebase doesn't allow: . # $ / [ ]
+            return key.replace(/[.#$\/\[\]]/g, '_');
+        }
+
         // Password Management Functions (Firebase)
         async function getStoredPassword(athleteName) {
             try {
-                const snapshot = await database.ref('customPasswords/' + athleteName).once('value');
+                const sanitizedName = sanitizeFirebaseKey(athleteName);
+                const snapshot = await database.ref('customPasswords/' + sanitizedName).once('value');
                 return snapshot.val();
             } catch (error) {
                 console.error('Error getting password:', error);
@@ -667,7 +674,8 @@
 
         async function setStoredPassword(athleteName, password) {
             try {
-                await database.ref('customPasswords/' + athleteName).set(password);
+                const sanitizedName = sanitizeFirebaseKey(athleteName);
+                await database.ref('customPasswords/' + sanitizedName).set(password);
                 console.log('Password saved to Firebase for:', athleteName);
             } catch (error) {
                 console.error('Error saving password:', error);
@@ -846,9 +854,21 @@
         async function loadAccessCodes() {
             try {
                 if (CONFIG.useFirebase) {
-                    // Load from Firebase
-                    const snapshot = await database.ref('accessCodes').once('value');
-                    accessCodes = snapshot.val() || {};
+                    // Load from Firebase (keys are sanitized)
+                    const codesSnapshot = await database.ref('accessCodes').once('value');
+                    const sanitizedCodes = codesSnapshot.val() || {};
+
+                    // Load name mapping to get original names
+                    const mappingSnapshot = await database.ref('nameMapping').once('value');
+                    const nameMapping = mappingSnapshot.val() || {};
+
+                    // Reconstruct accessCodes with original names as keys
+                    accessCodes = {};
+                    Object.keys(sanitizedCodes).forEach(sanitizedName => {
+                        const originalName = nameMapping[sanitizedName] || sanitizedName;
+                        accessCodes[originalName] = sanitizedCodes[sanitizedName];
+                    });
+
                     console.log('Access codes loaded from Firebase:', Object.keys(accessCodes).length, 'icons');
                 } else {
                     // Fallback to JSON file
@@ -929,9 +949,23 @@
                 const codesResponse = await fetch(CONFIG.codesUrl);
                 const codes = await codesResponse.json();
 
-                // Upload access codes to Firebase
-                await database.ref('accessCodes').set(codes);
-                console.log('✓ Access codes uploaded:', Object.keys(codes).length, 'codes');
+                // Sanitize access code keys for Firebase
+                const sanitizedCodes = {};
+                const nameMapping = {}; // Store original names
+
+                Object.keys(codes).forEach(name => {
+                    const sanitizedName = sanitizeFirebaseKey(name);
+                    sanitizedCodes[sanitizedName] = codes[name];
+                    nameMapping[sanitizedName] = name; // Store original name
+                });
+
+                // Upload access codes to Firebase with sanitized keys
+                await database.ref('accessCodes').set(sanitizedCodes);
+                console.log('✓ Access codes uploaded:', Object.keys(sanitizedCodes).length, 'codes');
+
+                // Upload name mapping to Firebase
+                await database.ref('nameMapping').set(nameMapping);
+                console.log('✓ Name mapping uploaded');
 
                 console.log('✓ Migration complete!');
                 alert('Data migration to Firebase completed successfully!');
