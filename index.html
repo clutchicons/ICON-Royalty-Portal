@@ -19,7 +19,7 @@
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background: linear-gradient(135deg, #8a2be2 0%, #0b1215 100%);
+            background: #ffffff;
             min-height: 100vh;
             padding: 20px;
         }
@@ -160,12 +160,7 @@
             transform: translateY(-5px);
             border-color: #8a2be2;
         }
-        
-        .stat-icon {
-            font-size: 2em;
-            margin-bottom: 10px;
-        }
-        
+
         .stat-value {
             font-size: 2.5em;
             font-weight: bold;
@@ -451,10 +446,7 @@
         /* Admin Tools Styling */
         #adminToolsPanel {
             background: #ffffff;
-            padding: 30px;
-            margin-top: 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            border-radius: 8px;
+            margin-top: 20px;
         }
 
         #adminToolsPanel h2,
@@ -544,14 +536,14 @@
         </div>
         
         <div id="errorSection" class="error" style="display: none;">
-            <h3>⚠️ Error Loading Data</h3>
+            <h3>Error Loading Data</h3>
             <p id="errorMessage"></p>
             <button class="btn" onclick="location.reload()" style="max-width: 200px; margin: 20px auto;">Reload Page</button>
         </div>
-        
+
         <div id="loginSection" style="display: none;">
             <div class="login-form">
-                <h2 style="margin-bottom: 30px; text-align: center; color: #0b1215;">🏆 ICON Royalty Portal</h2>
+                <h2 style="margin-bottom: 30px; text-align: center; color: #0b1215;">ICON Royalty Portal</h2>
                 
                 <div class="form-group">
                     <label for="athleteSearch">Enter Your Name</label>
@@ -590,46 +582,42 @@
             
             <div class="stats-grid">
                 <div class="stat-card">
-                    <div class="stat-icon">💰</div>
                     <div class="stat-value" id="totalRoyalties">$0</div>
                     <div class="stat-label">Total Royalties</div>
                 </div>
-                
+
                 <div class="stat-card">
-                    <div class="stat-icon">📦</div>
                     <div class="stat-value" id="totalOrders">0</div>
                     <div class="stat-label">Total Items</div>
                 </div>
-                
+
                 <div class="stat-card">
-                    <div class="stat-icon">👕</div>
                     <div class="stat-value" id="gameJerseys">0</div>
                     <div class="stat-label">Game Jerseys</div>
                 </div>
-                
+
                 <div class="stat-card">
-                    <div class="stat-icon">🛍️</div>
                     <div class="stat-value" id="otherItems">0</div>
                     <div class="stat-label">Other Items</div>
                 </div>
             </div>
-            
+
             <div id="jersey20Alert" class="alert" style="display: none;">
-                <strong>⚠️ Note:</strong> <span id="jersey20Count"></span> items had JERSEY20 discount applied (no royalty on those orders).
+                <strong>Note:</strong> <span id="jersey20Count"></span> items had JERSEY20 discount applied (no royalty on those orders).
             </div>
-            
+
             <div class="alert" style="background: #e3f2fd; border-color: #2196f3; color: #0d47a1;">
-                <strong>💰 Royalty Structure:</strong> Game Jerseys = $10 | All Other Items = $5
+                <strong>Royalty Structure:</strong> Game Jerseys = $10 | All Other Items = $5
             </div>
-            
+
             <div class="data-section">
-                <h2 class="section-title">📊 Monthly Breakdown</h2>
+                <h2 class="section-title">Monthly Breakdown</h2>
                 <div class="month-chart" id="monthChart"></div>
             </div>
-            
+
             <div class="data-section">
                 <div class="collapsible-header" onclick="toggleOrderHistory()">
-                    <h2 style="margin: 0;">📋 Order History</h2>
+                    <h2 style="margin: 0;">Order History</h2>
                     <span class="collapsible-icon open" id="orderHistoryIcon">▼</span>
                 </div>
 
@@ -660,20 +648,22 @@
                         </table>
                     </div>
 
-                    <button class="export-btn" onclick="exportData()">📥 Export My Data</button>
+                    <button class="export-btn" onclick="exportData()">Export My Data</button>
                 </div>
             </div>
 
             <!-- Admin Tools Panel (Only visible for admins) -->
             <div id="adminToolsPanel" style="display: none;">
-                <div class="header" style="margin-top: 40px;">
-                    <h2>🔧 Admin Tools</h2>
-                    <p class="subtitle">Manage users and view data</p>
-                </div>
+                <div class="data-section">
+                    <div class="collapsible-header" onclick="toggleAdminTools()">
+                        <h2 style="margin: 0;">Admin Tools</h2>
+                        <span class="collapsible-icon" id="adminToolsIcon">▼</span>
+                    </div>
 
-                <!-- User Management Section -->
-                <div class="table-container" style="margin-top: 20px;">
-                    <h3 style="margin-bottom: 15px;">👥 User Management</h3>
+                    <div class="collapsible-content" id="adminToolsContent">
+                        <!-- User Management Section -->
+                        <div style="margin-top: 20px;">
+                            <h3 style="margin-bottom: 15px;">User Management</h3>
 
                     <!-- User Search -->
                     <div class="form-group" style="margin-bottom: 20px;">
@@ -703,13 +693,13 @@
 
                         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                             <button class="btn" onclick="resetUserPassword()" style="background: #dc3545;">
-                                🔄 Reset to Default Password
+                                Reset to Default Password
                             </button>
                             <button class="btn" onclick="setCustomPasswordForUser()" style="background: #28a745;">
-                                🔐 Set Custom Password
+                                Set Custom Password
                             </button>
                             <button class="btn" onclick="viewUserData()" style="background: #17a2b8;">
-                                📊 View User's Data
+                                View User's Data
                             </button>
                         </div>
                     </div>
@@ -737,6 +727,8 @@
                                     <!-- Will be populated by JavaScript -->
                                 </tbody>
                             </table>
+                        </div>
+                    </div>
                         </div>
                     </div>
                 </div>
@@ -1702,7 +1694,7 @@
 
             // Check if user has custom password
             const sanitizedName = sanitizeFirebaseKey(userName);
-            const hasCustomPwd = allCustomPasswords[sanitizedName] ? 'Yes ✓' : 'No';
+            const hasCustomPwd = allCustomPasswords[sanitizedName] ? 'Yes' : 'No';
             document.getElementById('selectedUserHasCustomPwd').textContent = hasCustomPwd;
             document.getElementById('selectedUserHasCustomPwd').style.color =
                 allCustomPasswords[sanitizedName] ? '#28a745' : '#dc3545';
@@ -1836,8 +1828,10 @@
             const tbody = document.getElementById('allUsersTableBody');
             tbody.innerHTML = '';
 
-            // Filter out Admin
-            const users = athletesList.filter(athlete => athlete !== 'Admin (View All)');
+            // Filter out Admin and sort in descending order (Z to A)
+            const users = athletesList
+                .filter(athlete => athlete !== 'Admin (View All)')
+                .sort((a, b) => b.localeCompare(a)); // Descending alphabetical order
 
             users.forEach(userName => {
                 const sanitizedName = sanitizeFirebaseKey(userName);
@@ -1854,7 +1848,7 @@
                     <td>${userName}</td>
                     <td><code>${defaultPwd}</code></td>
                     <td style="color: ${hasCustomPwd ? '#28a745' : '#999'};">
-                        ${hasCustomPwd ? 'Yes ✓' : 'No'}
+                        ${hasCustomPwd ? 'Yes' : 'No'}
                     </td>
                     <td>
                         <button class="btn" onclick="selectAdminUser('${userName.replace(/'/g, "\\'")}'); document.getElementById('adminUserSearch').scrollIntoView();"
@@ -1893,6 +1887,15 @@
         function toggleOrderHistory() {
             const content = document.getElementById('orderHistoryContent');
             const icon = document.getElementById('orderHistoryIcon');
+
+            content.classList.toggle('open');
+            icon.classList.toggle('open');
+        }
+
+        // Toggle Admin Tools Collapsible
+        function toggleAdminTools() {
+            const content = document.getElementById('adminToolsContent');
+            const icon = document.getElementById('adminToolsIcon');
 
             content.classList.toggle('open');
             icon.classList.toggle('open');
