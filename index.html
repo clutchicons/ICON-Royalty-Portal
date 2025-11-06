@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ICON Royalty Dashboard</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
     <style>
         * {
             margin: 0;
@@ -628,21 +633,46 @@
         let athletesList = [];
         let usedDefaultPassword = false;
 
-        const CONFIG = {
-            dataUrl: 'royalty_data.csv',
-            codesUrl: 'access_codes.json'
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDNgeKx-tU9elTEn4GfJVIf2SdIAs46USg",
+            authDomain: "icon-royalty-portal.firebaseapp.com",
+            databaseURL: "https://icon-royalty-portal-default-rtdb.firebaseio.com",
+            projectId: "icon-royalty-portal",
+            storageBucket: "icon-royalty-portal.firebasestorage.app",
+            messagingSenderId: "493137013703",
+            appId: "1:493137013703:web:0db4615d66baa1872347e2"
         };
 
-        // Password Management Functions
-        function getStoredPassword(athleteName) {
-            const passwords = JSON.parse(localStorage.getItem('iconPasswords') || '{}');
-            return passwords[athleteName];
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        const CONFIG = {
+            dataUrl: 'royalty_data.csv',
+            codesUrl: 'access_codes.json',
+            useFirebase: true // Toggle between Firebase and local files
+        };
+
+        // Password Management Functions (Firebase)
+        async function getStoredPassword(athleteName) {
+            try {
+                const snapshot = await database.ref('customPasswords/' + athleteName).once('value');
+                return snapshot.val();
+            } catch (error) {
+                console.error('Error getting password:', error);
+                return null;
+            }
         }
 
-        function setStoredPassword(athleteName, password) {
-            const passwords = JSON.parse(localStorage.getItem('iconPasswords') || '{}');
-            passwords[athleteName] = password;
-            localStorage.setItem('iconPasswords', JSON.stringify(passwords));
+        async function setStoredPassword(athleteName, password) {
+            try {
+                await database.ref('customPasswords/' + athleteName).set(password);
+                console.log('Password saved to Firebase for:', athleteName);
+            } catch (error) {
+                console.error('Error saving password:', error);
+                throw error;
+            }
         }
 
         function checkPasswordStrength() {
@@ -728,7 +758,7 @@
             closeFirstLoginModal();
         }
 
-        function setFirstPassword() {
+        async function setFirstPassword() {
             const newPassword = document.getElementById('firstLoginNewPassword').value;
             const confirmPassword = document.getElementById('firstLoginConfirmPassword').value;
 
@@ -747,12 +777,12 @@
                 return;
             }
 
-            setStoredPassword(currentAthlete, newPassword);
+            await setStoredPassword(currentAthlete, newPassword);
             alert('Password changed successfully!');
             closeFirstLoginModal();
         }
 
-        function changePassword() {
+        async function changePassword() {
             const currentPassword = document.getElementById('currentPassword').value;
             const newPassword = document.getElementById('newPassword').value;
             const confirmPassword = document.getElementById('confirmPassword').value;
@@ -763,7 +793,7 @@
             }
 
             // Verify current password
-            const storedPassword = getStoredPassword(currentAthlete);
+            const storedPassword = await getStoredPassword(currentAthlete);
             const adminPassword = 'ADMIN2025';
             const initialsPassword = generatePasswordFromName(currentAthlete);
 
@@ -793,7 +823,7 @@
                 return;
             }
 
-            setStoredPassword(currentAthlete, newPassword);
+            await setStoredPassword(currentAthlete, newPassword);
             alert('Password changed successfully!');
             closePasswordModal();
         }
@@ -815,47 +845,106 @@
         
         async function loadAccessCodes() {
             try {
-                const response = await fetch(CONFIG.codesUrl);
-                if (!response.ok) throw new Error('Failed to load access codes');
-                accessCodes = await response.json();
-                console.log('Access codes loaded:', Object.keys(accessCodes).length, 'icons');
+                if (CONFIG.useFirebase) {
+                    // Load from Firebase
+                    const snapshot = await database.ref('accessCodes').once('value');
+                    accessCodes = snapshot.val() || {};
+                    console.log('Access codes loaded from Firebase:', Object.keys(accessCodes).length, 'icons');
+                } else {
+                    // Fallback to JSON file
+                    const response = await fetch(CONFIG.codesUrl);
+                    if (!response.ok) throw new Error('Failed to load access codes');
+                    accessCodes = await response.json();
+                    console.log('Access codes loaded from file:', Object.keys(accessCodes).length, 'icons');
+                }
             } catch (error) {
                 console.error('Error loading access codes:', error);
                 throw error;
             }
         }
-        
+
         async function loadCSVData() {
             try {
-                const response = await fetch(CONFIG.dataUrl);
-                if (!response.ok) throw new Error('Failed to load CSV data');
-                const csvText = await response.text();
-                
-                return new Promise((resolve, reject) => {
-                    Papa.parse(csvText, {
-                        header: true,
-                        dynamicTyping: true,
-                        skipEmptyLines: true,
-                        transformHeader: (header) => header.trim(),
-                        complete: (results) => {
-                            if (results.errors.length > 0) {
-                                console.warn('CSV parsing warnings:', results.errors);
+                if (CONFIG.useFirebase) {
+                    // Load from Firebase
+                    const snapshot = await database.ref('royaltyData').once('value');
+                    allData = snapshot.val() || [];
+                    console.log(`Loaded ${allData.length} records from Firebase`);
+                } else {
+                    // Fallback to CSV file
+                    const response = await fetch(CONFIG.dataUrl);
+                    if (!response.ok) throw new Error('Failed to load CSV data');
+                    const csvText = await response.text();
+
+                    return new Promise((resolve, reject) => {
+                        Papa.parse(csvText, {
+                            header: true,
+                            dynamicTyping: true,
+                            skipEmptyLines: true,
+                            transformHeader: (header) => header.trim(),
+                            complete: (results) => {
+                                if (results.errors.length > 0) {
+                                    console.warn('CSV parsing warnings:', results.errors);
+                                }
+                                allData = results.data.filter(row => row.athlete_name);
+                                console.log(`Loaded ${allData.length} records from CSV`);
+                                resolve();
+                            },
+                            error: (error) => {
+                                reject(new Error(`CSV parsing failed: ${error.message}`));
                             }
-                            allData = results.data.filter(row => row.athlete_name);
-                            console.log(`Loaded ${allData.length} records`);
-                            resolve();
-                        },
-                        error: (error) => {
-                            reject(new Error(`CSV parsing failed: ${error.message}`));
-                        }
+                        });
                     });
-                });
+                }
             } catch (error) {
                 console.error('Error loading CSV:', error);
                 throw error;
             }
         }
-        
+
+        // Migration Helper: Upload local data to Firebase (call this once)
+        async function migrateDataToFirebase() {
+            try {
+                console.log('Starting data migration to Firebase...');
+
+                // Load CSV data
+                const csvResponse = await fetch(CONFIG.dataUrl);
+                const csvText = await csvResponse.text();
+                const csvData = await new Promise((resolve, reject) => {
+                    Papa.parse(csvText, {
+                        header: true,
+                        dynamicTyping: true,
+                        skipEmptyLines: true,
+                        transformHeader: (header) => header.trim(),
+                        complete: (results) => resolve(results.data.filter(row => row.athlete_name)),
+                        error: (error) => reject(error)
+                    });
+                });
+
+                // Upload royalty data to Firebase
+                await database.ref('royaltyData').set(csvData);
+                console.log('✓ Royalty data uploaded:', csvData.length, 'records');
+
+                // Load access codes
+                const codesResponse = await fetch(CONFIG.codesUrl);
+                const codes = await codesResponse.json();
+
+                // Upload access codes to Firebase
+                await database.ref('accessCodes').set(codes);
+                console.log('✓ Access codes uploaded:', Object.keys(codes).length, 'codes');
+
+                console.log('✓ Migration complete!');
+                alert('Data migration to Firebase completed successfully!');
+            } catch (error) {
+                console.error('Migration error:', error);
+                alert('Migration failed: ' + error.message);
+            }
+        }
+
+        // To migrate data, open browser console and run: migrateDataToFirebase()
+        // Make this function accessible from console
+        window.migrateDataToFirebase = migrateDataToFirebase;
+
         function processData() {
             athleteData = {};
             const athleteSet = new Set();
@@ -1003,7 +1092,7 @@
             return firstInitial + lastInitial + '2025';
         }
 
-        function login() {
+        async function login() {
             const athleteName = document.getElementById('athleteSearch').value.trim();
             const code = document.getElementById('accessCode').value.trim();
 
@@ -1020,7 +1109,7 @@
             const ADMIN_PASSWORD = 'ADMIN2025';
 
             // Check for stored custom password first
-            const storedPassword = getStoredPassword(exactMatch);
+            const storedPassword = await getStoredPassword(exactMatch);
 
             // Generate the initials-based password for this user
             const initialsPassword = generatePasswordFromName(exactMatch);
