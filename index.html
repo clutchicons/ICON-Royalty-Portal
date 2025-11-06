@@ -447,6 +447,92 @@
         .strength-weak { color: #dc3545; }
         .strength-medium { color: #ffc107; }
         .strength-strong { color: #28a745; }
+
+        /* Admin Tools Styling */
+        #adminToolsPanel {
+            background: #ffffff;
+            padding: 30px;
+            margin-top: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            border-radius: 8px;
+        }
+
+        #adminToolsPanel h2,
+        #adminToolsPanel h3,
+        #adminToolsPanel h4 {
+            color: #0b1215;
+        }
+
+        #adminToolsPanel .subtitle {
+            color: #666;
+        }
+
+        #selectedUserInfo {
+            background: #f8f9fa;
+            border: 2px solid #8a2be2;
+            border-radius: 8px;
+        }
+
+        #allUsersTable {
+            background: white;
+            border-radius: 8px;
+        }
+
+        #allUsersTable table {
+            width: 100%;
+        }
+
+        #allUsersTable code {
+            background: #f8f9fa;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            color: #8a2be2;
+            font-weight: 600;
+        }
+
+        /* Collapsible Section Styling */
+        .collapsible-header {
+            background: #f8f9fa;
+            padding: 15px 20px;
+            cursor: pointer;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.2s;
+            margin-bottom: 10px;
+            border: 2px solid #e0e0e0;
+        }
+
+        .collapsible-header:hover {
+            background: #e9ecef;
+        }
+
+        .collapsible-header h3 {
+            margin: 0;
+            color: #0b1215;
+        }
+
+        .collapsible-icon {
+            font-size: 1.2em;
+            transition: transform 0.3s;
+        }
+
+        .collapsible-icon.open {
+            transform: rotate(180deg);
+        }
+
+        .collapsible-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+
+        .collapsible-content.open {
+            max-height: 2000px;
+            transition: max-height 0.5s ease-in;
+        }
     </style>
 </head>
 <body>
@@ -542,35 +628,40 @@
             </div>
             
             <div class="data-section">
-                <h2 class="section-title">📋 Order History</h2>
-                
-                <div class="table-search">
-                    <input 
-                        type="text" 
-                        id="tableSearch" 
-                        placeholder="Search orders..."
-                        onkeyup="filterTable()"
-                    >
+                <div class="collapsible-header" onclick="toggleOrderHistory()">
+                    <h2 style="margin: 0;">📋 Order History</h2>
+                    <span class="collapsible-icon open" id="orderHistoryIcon">▼</span>
                 </div>
-                
-                <div style="overflow-x: auto;">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Order #</th>
-                                <th>Product</th>
-                                <th>Date</th>
-                                <th>Discount</th>
-                                <th>Royalty</th>
-                            </tr>
-                        </thead>
-                        <tbody id="ordersTable">
-                            <tr><td colspan="5">No data loaded</td></tr>
-                        </tbody>
-                    </table>
+
+                <div class="collapsible-content open" id="orderHistoryContent">
+                    <div class="table-search">
+                        <input
+                            type="text"
+                            id="tableSearch"
+                            placeholder="Search orders..."
+                            onkeyup="filterTable()"
+                        >
+                    </div>
+
+                    <div style="overflow-x: auto;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Order #</th>
+                                    <th>Product</th>
+                                    <th>Date</th>
+                                    <th>Discount</th>
+                                    <th>Royalty</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ordersTable">
+                                <tr><td colspan="5">No data loaded</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <button class="export-btn" onclick="exportData()">📥 Export My Data</button>
                 </div>
-                
-                <button class="export-btn" onclick="exportData()">📥 Export My Data</button>
             </div>
 
             <!-- Admin Tools Panel (Only visible for admins) -->
@@ -1451,7 +1542,12 @@
                 chartDiv.innerHTML = '<p style="text-align: center; color: #999;">No monthly data available</p>';
             }
             
-            window.tableData = data.slice().reverse();
+            // Sort by date (most recent first)
+            window.tableData = data.slice().sort((a, b) => {
+                const dateA = a.created_at ? new Date(a.created_at) : new Date(0);
+                const dateB = b.created_at ? new Date(b.created_at) : new Date(0);
+                return dateB - dateA; // Descending order (newest first)
+            });
             renderTable(window.tableData);
 
             // Show admin tools panel if user is admin
@@ -1792,6 +1888,15 @@
         }
 
         // ========== END ADMIN FUNCTIONS ==========
+
+        // Toggle Order History Collapsible
+        function toggleOrderHistory() {
+            const content = document.getElementById('orderHistoryContent');
+            const icon = document.getElementById('orderHistoryIcon');
+
+            content.classList.toggle('open');
+            icon.classList.toggle('open');
+        }
 
         function showLoading(show) {
             document.getElementById('loadingSection').style.display = show ? 'block' : 'none';
