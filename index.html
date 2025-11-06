@@ -1059,7 +1059,8 @@
             }
 
             // Check initials-based password (FirstInitial + LastInitial + 2025)
-            if (initialsPassword && code.toUpperCase() === initialsPassword) {
+            // Only allow initials-based password if user hasn't set a custom password
+            if (!storedPassword && initialsPassword && code.toUpperCase() === initialsPassword) {
                 currentAthlete = exactMatch;
                 usedDefaultPassword = true;
                 showDashboard(exactMatch);
