@@ -525,6 +525,293 @@
             max-height: 2000px;
             transition: max-height 0.5s ease-in;
         }
+
+        /* Mobile Responsiveness */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .container {
+                max-width: 100%;
+            }
+
+            /* Header adjustments */
+            .header {
+                padding: 20px 15px;
+                margin-bottom: 15px;
+            }
+
+            h1 {
+                font-size: 1.5em;
+            }
+
+            .subtitle {
+                font-size: 0.9em;
+            }
+
+            /* Stats grid - stack on mobile */
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+                margin-bottom: 20px;
+            }
+
+            .stat-card {
+                padding: 15px;
+            }
+
+            .stat-value {
+                font-size: 1.8em;
+            }
+
+            .stat-label {
+                font-size: 0.8em;
+            }
+
+            /* Data sections */
+            .data-section {
+                padding: 15px;
+                margin-bottom: 15px;
+            }
+
+            .section-title {
+                font-size: 1.2em;
+                margin-bottom: 15px;
+            }
+
+            /* Bar chart - make scrollable horizontally */
+            .month-chart {
+                height: 250px;
+                overflow-x: auto;
+                overflow-y: hidden;
+                min-width: 100%;
+                padding-bottom: 35px;
+            }
+
+            .bar {
+                min-width: 40px;
+                margin: 0 3px;
+            }
+
+            .bar-label {
+                font-size: 0.7em;
+                bottom: -30px;
+                transform: translateX(-50%) rotate(-45deg);
+                transform-origin: center;
+                white-space: nowrap;
+            }
+
+            .bar-value {
+                font-size: 0.75em;
+                top: -20px;
+            }
+
+            /* Tables - horizontal scroll */
+            .table-container,
+            div[style*="overflow-x: auto"] {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            table {
+                min-width: 600px;
+            }
+
+            th, td {
+                padding: 8px;
+                font-size: 0.85em;
+            }
+
+            /* Forms */
+            .login-form {
+                padding: 25px;
+                max-width: 100%;
+                margin: 20px auto;
+            }
+
+            .form-group {
+                margin-bottom: 15px;
+            }
+
+            input {
+                padding: 10px;
+                font-size: 16px; /* Prevents zoom on iOS */
+            }
+
+            /* Buttons - touch-friendly */
+            .btn {
+                padding: 12px 20px;
+                font-size: 16px;
+                min-height: 44px; /* iOS touch target */
+            }
+
+            .export-btn {
+                width: 100%;
+                padding: 15px;
+            }
+
+            .logout-btn,
+            .change-password-btn {
+                padding: 8px 15px;
+                font-size: 0.9em;
+                margin: 5px;
+                float: none;
+                display: inline-block;
+            }
+
+            /* Modals */
+            .modal-content {
+                width: 95%;
+                margin: 10% auto;
+                padding: 20px;
+                max-width: none;
+            }
+
+            .modal-header {
+                font-size: 1.3em;
+            }
+
+            /* Collapsible headers */
+            .collapsible-header {
+                padding: 12px 15px;
+            }
+
+            .collapsible-header h2,
+            .collapsible-header h3 {
+                font-size: 1.1em;
+            }
+
+            /* Admin tools */
+            #adminToolsPanel .btn {
+                width: 100%;
+                margin-bottom: 10px;
+            }
+
+            #selectedUserInfo {
+                padding: 15px;
+            }
+
+            #selectedUserInfo > div[style*="grid"] {
+                grid-template-columns: 1fr !important;
+                gap: 10px !important;
+            }
+
+            #selectedUserInfo .btn {
+                width: 100%;
+            }
+
+            /* Table search */
+            .table-search input {
+                width: 100%;
+                padding: 10px;
+                font-size: 16px;
+            }
+
+            /* Alerts */
+            .alert {
+                padding: 12px;
+                font-size: 0.9em;
+            }
+
+            /* Suggestions dropdown */
+            .suggestions {
+                font-size: 0.9em;
+            }
+
+            .suggestion {
+                padding: 10px;
+            }
+        }
+
+        /* Small mobile devices */
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 1.3em;
+            }
+
+            /* Single column stats on very small screens */
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stat-value {
+                font-size: 1.5em;
+            }
+
+            /* Smaller padding everywhere */
+            .data-section {
+                padding: 10px;
+            }
+
+            .header {
+                padding: 15px 10px;
+            }
+
+            /* Bar chart even more compact */
+            .month-chart {
+                height: 200px;
+            }
+
+            .bar {
+                min-width: 30px;
+                margin: 0 2px;
+            }
+
+            .bar-label {
+                font-size: 0.65em;
+            }
+
+            .bar-value {
+                font-size: 0.7em;
+            }
+
+            /* Modals full screen on very small devices */
+            .modal-content {
+                width: 100%;
+                margin: 5% auto;
+                padding: 15px;
+                max-height: 90vh;
+                overflow-y: auto;
+            }
+
+            /* Stack button groups vertically */
+            div[style*="display: flex; gap: 10px"] button {
+                width: 100%;
+                margin-bottom: 8px;
+            }
+        }
+
+        /* Landscape orientation tweaks */
+        @media (max-width: 768px) and (orientation: landscape) {
+            .month-chart {
+                height: 180px;
+            }
+
+            .modal-content {
+                max-height: 85vh;
+                overflow-y: auto;
+            }
+        }
+
+        /* Print styles */
+        @media print {
+            .logout-btn,
+            .change-password-btn,
+            .export-btn,
+            .collapsible-icon,
+            #adminToolsPanel {
+                display: none !important;
+            }
+
+            .collapsible-content {
+                max-height: none !important;
+            }
+
+            body {
+                background: white;
+            }
+        }
     </style>
 </head>
 <body>
