@@ -831,28 +831,58 @@
         <div id="loginSection" style="display: none;">
             <div class="login-form">
                 <h2 style="margin-bottom: 30px; text-align: center; color: #0b1215;">ICON Royalty Portal</h2>
-                
-                <div class="form-group">
-                    <label for="athleteSearch">Enter Your Name</label>
-                    <div class="search-container">
-                        <input 
-                            type="text" 
-                            id="athleteSearch" 
-                            placeholder="Start typing your name..."
-                            autocomplete="off"
-                        >
-                        <div id="suggestions" class="suggestions"></div>
+
+                <!-- Login Type Toggle -->
+                <div style="margin-bottom: 20px; display: flex; gap: 10px;">
+                    <button id="athleteLoginBtn" class="btn" onclick="switchLoginType('athlete')" style="flex: 1; background: linear-gradient(135deg, #8a2be2 0%, #0b1215 100%);">
+                        Athlete Login
+                    </button>
+                    <button id="orgLoginBtn" class="btn" onclick="switchLoginType('organization')" style="flex: 1; background: #6c757d;">
+                        Organization Login
+                    </button>
+                </div>
+
+                <!-- Athlete Login Form -->
+                <div id="athleteLoginForm">
+                    <div class="form-group">
+                        <label for="athleteSearch">Enter Your Name</label>
+                        <div class="search-container">
+                            <input
+                                type="text"
+                                id="athleteSearch"
+                                placeholder="Start typing your name..."
+                                autocomplete="off"
+                            >
+                            <div id="suggestions" class="suggestions"></div>
+                        </div>
+                        <div class="search-hint">Type at least 2 letters to see suggestions</div>
                     </div>
-                    <div class="search-hint">Type at least 2 letters to see suggestions</div>
+
+                    <div class="form-group">
+                        <label for="accessCode">Access Code</label>
+                        <input type="text" id="accessCode" placeholder="Enter your code">
+                    </div>
+
+                    <button id="loginBtn" class="btn" onclick="login()" disabled>Login to Dashboard</button>
                 </div>
-                
-                <div class="form-group">
-                    <label for="accessCode">Access Code</label>
-                    <input type="text" id="accessCode" placeholder="Enter your code">
+
+                <!-- Organization Login Form -->
+                <div id="organizationLoginForm" style="display: none;">
+                    <div class="form-group">
+                        <label for="orgSelect">Select Organization</label>
+                        <select id="orgSelect" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; font-size: 1em;">
+                            <option value="">-- Select Organization --</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="orgPassword">Organization Password</label>
+                        <input type="password" id="orgPassword" placeholder="Enter organization password">
+                    </div>
+
+                    <button id="orgLoginSubmitBtn" class="btn" onclick="loginAsOrganization()">Login as Organization</button>
                 </div>
-                
-                <button id="loginBtn" class="btn" onclick="login()" disabled>Login to Dashboard</button>
-                
+
                 <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; text-align: center;">
                     <small style="color: #666;">Don't have an access code? Contact your administrator.</small>
                 </div>
@@ -1016,6 +1046,91 @@
                             </table>
                         </div>
                     </div>
+
+                        <!-- Organization Management Section -->
+                        <div style="margin-top: 40px; border-top: 3px solid #e0e0e0; padding-top: 30px;">
+                            <h3 style="margin-bottom: 20px;">Organization Management</h3>
+
+                            <!-- Create New Organization -->
+                            <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                                <h4 style="margin-bottom: 15px;">Create New Organization</h4>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                                    <div>
+                                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">Organization Name</label>
+                                        <input type="text" id="newOrgName" placeholder="e.g., NIL CLUB" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0;">
+                                    </div>
+                                    <div>
+                                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">Password</label>
+                                        <input type="password" id="newOrgPassword" placeholder="Organization password" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0;">
+                                    </div>
+                                </div>
+                                <button class="btn" onclick="createOrganization()" style="width: auto; padding: 10px 30px;">
+                                    Create Organization
+                                </button>
+                            </div>
+
+                            <!-- Existing Organizations List -->
+                            <div>
+                                <h4 style="margin-bottom: 15px;">Existing Organizations</h4>
+                                <div id="organizationsList" style="max-height: 300px; overflow-y: auto;">
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>Organization Name</th>
+                                                <th>ID</th>
+                                                <th>Tagged Athletes</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="organizationsTableBody">
+                                            <tr><td colspan="4" style="text-align: center;">Loading...</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Athlete Organization Tagging Section -->
+                        <div style="margin-top: 40px; border-top: 3px solid #e0e0e0; padding-top: 30px;">
+                            <h3 style="margin-bottom: 20px;">Athlete Organization Tagging</h3>
+
+                            <div class="form-group" style="margin-bottom: 20px;">
+                                <label for="athleteTagSearch">Select Athlete</label>
+                                <div class="search-container">
+                                    <input type="text"
+                                           id="athleteTagSearch"
+                                           placeholder="Type to search athletes..."
+                                           oninput="filterAthleteTagList()"
+                                           style="width: 100%;">
+                                    <div id="athleteTagList" class="suggestions"></div>
+                                </div>
+                            </div>
+
+                            <div id="athleteTagInfo" style="display: none; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+                                <h4 style="margin-bottom: 15px;">Athlete: <span id="selectedAthleteName" style="color: #8a2be2;"></span></h4>
+
+                                <div style="margin-bottom: 15px;">
+                                    <strong>Current Organization:</strong>
+                                    <span id="currentOrgTag" style="color: #28a745; font-weight: 600;">None</span>
+                                </div>
+
+                                <div style="margin-bottom: 15px;">
+                                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Assign Organization</label>
+                                    <select id="orgTagSelect" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0;">
+                                        <option value="">-- No Organization --</option>
+                                    </select>
+                                </div>
+
+                                <div style="display: flex; gap: 10px;">
+                                    <button class="btn" onclick="updateAthleteOrganization()" style="background: #28a745; width: auto; padding: 10px 30px;">
+                                        Update Organization
+                                    </button>
+                                    <button class="btn" onclick="removeAthleteOrganization()" style="background: #dc3545; width: auto; padding: 10px 30px;">
+                                        Remove Organization
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                         </div>
                     </div>
                 </div>
@@ -1134,6 +1249,52 @@
         </div>
     </div>
 
+    <!-- Organization: Edit Modal -->
+    <div id="editOrganizationModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeEditOrganizationModal()">&times;</span>
+            <h2 class="modal-header">Edit Organization</h2>
+            <p class="modal-subtitle">Update organization details</p>
+
+            <input type="hidden" id="editOrgId">
+
+            <div class="form-group">
+                <label for="editOrgName">Organization Name</label>
+                <input type="text" id="editOrgName" placeholder="Organization name">
+            </div>
+
+            <div class="form-group">
+                <label for="editOrgPassword">New Password (leave blank to keep current)</label>
+                <input type="password" id="editOrgPassword" placeholder="New password">
+            </div>
+
+            <button class="btn" onclick="confirmEditOrganization()">Update Organization</button>
+        </div>
+    </div>
+
+    <!-- Organization: View Athletes Modal -->
+    <div id="viewOrgAthletesModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <span class="close" onclick="closeViewOrgAthletesModal()">&times;</span>
+            <h2 class="modal-header">Organization Athletes: <span id="viewOrgAthletesName"></span></h2>
+
+            <div id="viewOrgAthletesContainer" style="max-height: 400px; overflow-y: auto; margin-top: 20px;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Athlete Name</th>
+                            <th>Total Sales</th>
+                            <th>Total Royalties</th>
+                        </tr>
+                    </thead>
+                    <tbody id="viewOrgAthletesTableBody">
+                        <!-- Will be populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
     <script>
         let allData = [];
         let athleteData = {};
@@ -1146,6 +1307,13 @@
         // Admin functionality variables
         let selectedAdminUser = null;
         let allCustomPasswords = {};
+
+        // Organization functionality variables
+        let allOrganizations = {};
+        let athleteOrganizations = {};
+        let selectedAthleteForTag = null;
+        let currentOrganization = null;
+        let currentLoginType = 'athlete';
 
         // Firebase Configuration
         const firebaseConfig = {
@@ -1356,6 +1524,9 @@
                 await loadAccessCodes();
                 await loadCSVData();
                 processData();
+                await loadAllOrganizations();
+                await loadAthleteOrganizations();
+                await populateOrganizationSelects();
                 showLoading(false);
                 showLogin();
                 setupSearch();
@@ -1773,8 +1944,12 @@
         function showDashboard(athlete) {
             document.getElementById('loginSection').style.display = 'none';
             document.getElementById('dashboard').style.display = 'block';
-            
-            document.getElementById('athleteName').textContent = 
+
+            // Show password change button for athlete logins
+            const passwordBtn = document.querySelector('.change-password-btn');
+            if (passwordBtn) passwordBtn.style.display = 'inline-block';
+
+            document.getElementById('athleteName').textContent =
                 athlete === 'Admin' ? 'Admin (All Icons)' : athlete;
             
             const data = currentAthlete === 'ALL' ? allData : (athleteData[athlete] || []);
@@ -1861,6 +2036,13 @@
                 document.getElementById('adminToolsPanel').style.display = 'block';
                 loadAllCustomPasswords();
                 refreshUserStatusTable();
+                // Load organization data for admin
+                loadAllOrganizations().then(() => {
+                    loadAthleteOrganizations().then(() => {
+                        refreshOrganizationsTable();
+                        populateOrganizationSelects();
+                    });
+                });
             } else {
                 document.getElementById('adminToolsPanel').style.display = 'none';
             }
@@ -1918,16 +2100,34 @@
         
         function logout() {
             currentAthlete = '';
+            currentOrganization = null;
             document.getElementById('dashboard').style.display = 'none';
             document.getElementById('loginSection').style.display = 'block';
             document.getElementById('athleteSearch').value = '';
             document.getElementById('accessCode').value = '';
             document.getElementById('tableSearch').value = '';
             document.getElementById('loginBtn').disabled = true;
+            document.getElementById('orgSelect').value = '';
+            document.getElementById('orgPassword').value = '';
+            // Switch back to athlete login
+            switchLoginType('athlete');
         }
         
         function exportData() {
-            const data = currentAthlete === 'ALL' ? allData : athleteData[currentAthlete];
+            let data;
+            let filename;
+
+            if (currentOrganization) {
+                // Export organization data (use window.tableData which contains org athletes)
+                data = window.tableData || [];
+                filename = `${allOrganizations[currentOrganization].name}_royalties.csv`;
+            } else if (currentAthlete === 'ALL') {
+                data = allData;
+                filename = 'all_icons_royalties.csv';
+            } else {
+                data = athleteData[currentAthlete];
+                filename = `${currentAthlete}_royalties.csv`;
+            }
             
             if (!data || data.length === 0) {
                 alert('No data to export');
@@ -1948,7 +2148,7 @@
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `${currentAthlete === 'ALL' ? 'all_icons' : currentAthlete}_royalties.csv`;
+            a.download = filename;
             a.click();
             window.URL.revokeObjectURL(url);
         }
@@ -2196,6 +2396,601 @@
         }
 
         // ========== END ADMIN FUNCTIONS ==========
+
+        // ========== ORGANIZATION MANAGEMENT FUNCTIONS ==========
+
+        // Load all organizations from Firebase
+        async function loadAllOrganizations() {
+            try {
+                const snapshot = await database.ref('organizations').once('value');
+                allOrganizations = snapshot.val() || {};
+                console.log('Loaded', Object.keys(allOrganizations).length, 'organizations');
+                return allOrganizations;
+            } catch (error) {
+                console.error('Error loading organizations:', error);
+                return {};
+            }
+        }
+
+        // Load athlete-organization mappings from Firebase
+        async function loadAthleteOrganizations() {
+            try {
+                const snapshot = await database.ref('athleteOrganizations').once('value');
+                athleteOrganizations = snapshot.val() || {};
+                console.log('Loaded', Object.keys(athleteOrganizations).length, 'athlete-organization mappings');
+                return athleteOrganizations;
+            } catch (error) {
+                console.error('Error loading athlete organizations:', error);
+                return {};
+            }
+        }
+
+        // Create new organization
+        async function createOrganization() {
+            const name = document.getElementById('newOrgName').value.trim();
+            const password = document.getElementById('newOrgPassword').value;
+
+            if (!name) {
+                alert('Please enter an organization name');
+                return;
+            }
+
+            if (!password || password.length < 6) {
+                alert('Password must be at least 6 characters long');
+                return;
+            }
+
+            // Create organization ID from name (lowercase, replace spaces with underscores)
+            const orgId = name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+
+            if (allOrganizations[orgId]) {
+                alert('An organization with this name already exists');
+                return;
+            }
+
+            try {
+                const orgData = {
+                    name: name,
+                    password: password,
+                    createdAt: Date.now()
+                };
+
+                await database.ref('organizations/' + orgId).set(orgData);
+                allOrganizations[orgId] = orgData;
+
+                alert(`Organization "${name}" created successfully!`);
+                document.getElementById('newOrgName').value = '';
+                document.getElementById('newOrgPassword').value = '';
+
+                await refreshOrganizationsTable();
+                await populateOrganizationSelects();
+            } catch (error) {
+                console.error('Error creating organization:', error);
+                alert('Failed to create organization: ' + error.message);
+            }
+        }
+
+        // Refresh organizations table
+        async function refreshOrganizationsTable() {
+            await loadAllOrganizations();
+            await loadAthleteOrganizations();
+
+            const tbody = document.getElementById('organizationsTableBody');
+            tbody.innerHTML = '';
+
+            const orgIds = Object.keys(allOrganizations).sort();
+
+            if (orgIds.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">No organizations found</td></tr>';
+                return;
+            }
+
+            orgIds.forEach(orgId => {
+                const org = allOrganizations[orgId];
+
+                // Count tagged athletes
+                const taggedAthletes = Object.keys(athleteOrganizations).filter(
+                    athleteName => athleteOrganizations[athleteName] === orgId
+                );
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${org.name}</td>
+                    <td><code style="background: #f8f9fa; padding: 4px 8px; border-radius: 4px; font-family: 'Courier New', monospace; color: #8a2be2;">${orgId}</code></td>
+                    <td>${taggedAthletes.length} athlete(s)</td>
+                    <td>
+                        <button class="btn" onclick="viewOrganizationAthletes('${orgId}')" style="padding: 5px 10px; font-size: 0.9em; background: #17a2b8; margin-right: 5px;">
+                            View Athletes
+                        </button>
+                        <button class="btn" onclick="editOrganization('${orgId}')" style="padding: 5px 10px; font-size: 0.9em; background: #28a745; margin-right: 5px;">
+                            Edit
+                        </button>
+                        <button class="btn" onclick="deleteOrganization('${orgId}')" style="padding: 5px 10px; font-size: 0.9em; background: #dc3545;">
+                            Delete
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Edit organization
+        function editOrganization(orgId) {
+            const org = allOrganizations[orgId];
+            if (!org) return;
+
+            document.getElementById('editOrgId').value = orgId;
+            document.getElementById('editOrgName').value = org.name;
+            document.getElementById('editOrgPassword').value = '';
+            document.getElementById('editOrganizationModal').style.display = 'block';
+        }
+
+        // Confirm edit organization
+        async function confirmEditOrganization() {
+            const orgId = document.getElementById('editOrgId').value;
+            const newName = document.getElementById('editOrgName').value.trim();
+            const newPassword = document.getElementById('editOrgPassword').value;
+
+            if (!newName) {
+                alert('Please enter an organization name');
+                return;
+            }
+
+            try {
+                const updates = {
+                    name: newName
+                };
+
+                if (newPassword && newPassword.length >= 6) {
+                    updates.password = newPassword;
+                } else if (newPassword && newPassword.length < 6) {
+                    alert('Password must be at least 6 characters long');
+                    return;
+                }
+
+                await database.ref('organizations/' + orgId).update(updates);
+                allOrganizations[orgId] = { ...allOrganizations[orgId], ...updates };
+
+                alert('Organization updated successfully!');
+                closeEditOrganizationModal();
+                await refreshOrganizationsTable();
+                await populateOrganizationSelects();
+            } catch (error) {
+                console.error('Error updating organization:', error);
+                alert('Failed to update organization: ' + error.message);
+            }
+        }
+
+        // Delete organization
+        async function deleteOrganization(orgId) {
+            const org = allOrganizations[orgId];
+            if (!org) return;
+
+            // Count tagged athletes
+            const taggedAthletes = Object.keys(athleteOrganizations).filter(
+                athleteName => athleteOrganizations[athleteName] === orgId
+            );
+
+            let confirmMsg = `Delete organization "${org.name}"?`;
+            if (taggedAthletes.length > 0) {
+                confirmMsg += `\n\nThis will also remove ${taggedAthletes.length} athlete tag(s).`;
+            }
+
+            if (!confirm(confirmMsg)) {
+                return;
+            }
+
+            try {
+                // Delete organization
+                await database.ref('organizations/' + orgId).remove();
+                delete allOrganizations[orgId];
+
+                // Remove all athlete tags for this organization
+                if (taggedAthletes.length > 0) {
+                    const updates = {};
+                    taggedAthletes.forEach(athleteName => {
+                        const sanitizedName = sanitizeFirebaseKey(athleteName);
+                        updates['athleteOrganizations/' + sanitizedName] = null;
+                        delete athleteOrganizations[athleteName];
+                    });
+                    await database.ref().update(updates);
+                }
+
+                alert('Organization deleted successfully!');
+                await refreshOrganizationsTable();
+                await populateOrganizationSelects();
+            } catch (error) {
+                console.error('Error deleting organization:', error);
+                alert('Failed to delete organization: ' + error.message);
+            }
+        }
+
+        // View organization athletes
+        function viewOrganizationAthletes(orgId) {
+            const org = allOrganizations[orgId];
+            if (!org) return;
+
+            document.getElementById('viewOrgAthletesName').textContent = org.name;
+
+            // Get tagged athletes
+            const taggedAthletes = Object.keys(athleteOrganizations).filter(
+                athleteName => athleteOrganizations[athleteName] === orgId
+            );
+
+            const tbody = document.getElementById('viewOrgAthletesTableBody');
+            tbody.innerHTML = '';
+
+            if (taggedAthletes.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" style="text-align: center;">No athletes tagged with this organization</td></tr>';
+            } else {
+                taggedAthletes.forEach(athleteName => {
+                    const athleteSales = athleteData[athleteName] || [];
+                    let totalRoyalties = 0;
+
+                    athleteSales.forEach(row => {
+                        totalRoyalties += calculateRoyalty(row);
+                    });
+
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${athleteName}</td>
+                        <td>${athleteSales.length}</td>
+                        <td>$${Math.round(totalRoyalties)}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+
+            document.getElementById('viewOrgAthletesModal').style.display = 'block';
+        }
+
+        // Populate organization selects (for login and tagging)
+        async function populateOrganizationSelects() {
+            await loadAllOrganizations();
+
+            const orgSelectLogin = document.getElementById('orgSelect');
+            const orgTagSelect = document.getElementById('orgTagSelect');
+
+            // Clear existing options (except first)
+            orgSelectLogin.innerHTML = '<option value="">-- Select Organization --</option>';
+            orgTagSelect.innerHTML = '<option value="">-- No Organization --</option>';
+
+            const orgIds = Object.keys(allOrganizations).sort((a, b) => {
+                return allOrganizations[a].name.localeCompare(allOrganizations[b].name);
+            });
+
+            orgIds.forEach(orgId => {
+                const org = allOrganizations[orgId];
+
+                const optionLogin = document.createElement('option');
+                optionLogin.value = orgId;
+                optionLogin.textContent = org.name;
+                orgSelectLogin.appendChild(optionLogin);
+
+                const optionTag = document.createElement('option');
+                optionTag.value = orgId;
+                optionTag.textContent = org.name;
+                orgTagSelect.appendChild(optionTag);
+            });
+        }
+
+        // Filter athlete tag list
+        function filterAthleteTagList() {
+            const input = document.getElementById('athleteTagSearch').value.toLowerCase();
+            const suggestionsList = document.getElementById('athleteTagList');
+
+            if (!input) {
+                suggestionsList.classList.remove('active');
+                return;
+            }
+
+            const filtered = athletesList.filter(athlete =>
+                athlete !== 'Admin (View All)' && athlete.toLowerCase().includes(input)
+            ).slice(0, 10);
+
+            if (filtered.length === 0) {
+                suggestionsList.classList.remove('active');
+                return;
+            }
+
+            suggestionsList.innerHTML = filtered.map(athlete =>
+                `<div class="suggestion" onclick="selectAthleteForTag('${athlete.replace(/'/g, "\\'")}')">${athlete}</div>`
+            ).join('');
+
+            suggestionsList.classList.add('active');
+        }
+
+        // Select athlete for tagging
+        async function selectAthleteForTag(athleteName) {
+            selectedAthleteForTag = athleteName;
+            document.getElementById('athleteTagSearch').value = athleteName;
+            document.getElementById('athleteTagList').classList.remove('active');
+
+            // Show athlete info section
+            document.getElementById('athleteTagInfo').style.display = 'block';
+            document.getElementById('selectedAthleteName').textContent = athleteName;
+
+            // Get current organization
+            await loadAthleteOrganizations();
+            const sanitizedName = sanitizeFirebaseKey(athleteName);
+            const currentOrgId = athleteOrganizations[sanitizedName] || athleteOrganizations[athleteName];
+
+            if (currentOrgId && allOrganizations[currentOrgId]) {
+                document.getElementById('currentOrgTag').textContent = allOrganizations[currentOrgId].name;
+                document.getElementById('currentOrgTag').style.color = '#28a745';
+                document.getElementById('orgTagSelect').value = currentOrgId;
+            } else {
+                document.getElementById('currentOrgTag').textContent = 'None';
+                document.getElementById('currentOrgTag').style.color = '#999';
+                document.getElementById('orgTagSelect').value = '';
+            }
+        }
+
+        // Update athlete organization
+        async function updateAthleteOrganization() {
+            if (!selectedAthleteForTag) {
+                alert('Please select an athlete first');
+                return;
+            }
+
+            const orgId = document.getElementById('orgTagSelect').value;
+
+            if (!orgId) {
+                alert('Please select an organization');
+                return;
+            }
+
+            try {
+                const sanitizedName = sanitizeFirebaseKey(selectedAthleteForTag);
+                await database.ref('athleteOrganizations/' + sanitizedName).set(orgId);
+                athleteOrganizations[sanitizedName] = orgId;
+
+                alert(`Successfully tagged ${selectedAthleteForTag} with ${allOrganizations[orgId].name}!`);
+                selectAthleteForTag(selectedAthleteForTag); // Refresh display
+                await refreshOrganizationsTable();
+            } catch (error) {
+                console.error('Error updating athlete organization:', error);
+                alert('Failed to update athlete organization: ' + error.message);
+            }
+        }
+
+        // Remove athlete organization
+        async function removeAthleteOrganization() {
+            if (!selectedAthleteForTag) {
+                alert('Please select an athlete first');
+                return;
+            }
+
+            if (!confirm(`Remove organization tag from ${selectedAthleteForTag}?`)) {
+                return;
+            }
+
+            try {
+                const sanitizedName = sanitizeFirebaseKey(selectedAthleteForTag);
+                await database.ref('athleteOrganizations/' + sanitizedName).remove();
+                delete athleteOrganizations[sanitizedName];
+
+                alert(`Organization tag removed from ${selectedAthleteForTag}`);
+                selectAthleteForTag(selectedAthleteForTag); // Refresh display
+                await refreshOrganizationsTable();
+            } catch (error) {
+                console.error('Error removing athlete organization:', error);
+                alert('Failed to remove athlete organization: ' + error.message);
+            }
+        }
+
+        // Switch login type (athlete or organization)
+        function switchLoginType(type) {
+            currentLoginType = type;
+
+            const athleteLoginBtn = document.getElementById('athleteLoginBtn');
+            const orgLoginBtn = document.getElementById('orgLoginBtn');
+            const athleteLoginForm = document.getElementById('athleteLoginForm');
+            const organizationLoginForm = document.getElementById('organizationLoginForm');
+
+            if (type === 'athlete') {
+                athleteLoginBtn.style.background = 'linear-gradient(135deg, #8a2be2 0%, #0b1215 100%)';
+                orgLoginBtn.style.background = '#6c757d';
+                athleteLoginForm.style.display = 'block';
+                organizationLoginForm.style.display = 'none';
+            } else {
+                athleteLoginBtn.style.background = '#6c757d';
+                orgLoginBtn.style.background = 'linear-gradient(135deg, #8a2be2 0%, #0b1215 100%)';
+                athleteLoginForm.style.display = 'none';
+                organizationLoginForm.style.display = 'block';
+            }
+        }
+
+        // Login as organization
+        async function loginAsOrganization() {
+            const orgId = document.getElementById('orgSelect').value;
+            const password = document.getElementById('orgPassword').value;
+
+            if (!orgId) {
+                alert('Please select an organization');
+                return;
+            }
+
+            if (!password) {
+                alert('Please enter a password');
+                return;
+            }
+
+            await loadAllOrganizations();
+            const org = allOrganizations[orgId];
+
+            if (!org) {
+                alert('Organization not found');
+                return;
+            }
+
+            if (password !== org.password) {
+                alert('Invalid password');
+                return;
+            }
+
+            // Login successful
+            currentOrganization = orgId;
+            currentAthlete = null;
+            showOrganizationDashboard(orgId);
+        }
+
+        // Show organization dashboard
+        async function showOrganizationDashboard(orgId) {
+            await loadAthleteOrganizations();
+            const org = allOrganizations[orgId];
+
+            document.getElementById('loginSection').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'block';
+
+            // Hide password change button for organization logins
+            const passwordBtn = document.querySelector('.change-password-btn');
+            if (passwordBtn) passwordBtn.style.display = 'none';
+
+            document.getElementById('athleteName').textContent = org.name + ' (Organization)';
+
+            // Get tagged athletes
+            const taggedAthletes = Object.keys(athleteOrganizations).filter(sanitizedName => {
+                return athleteOrganizations[sanitizedName] === orgId;
+            });
+
+            // Get original athlete names from nameMapping
+            const mappingSnapshot = await database.ref('nameMapping').once('value');
+            const nameMapping = mappingSnapshot.val() || {};
+
+            const originalAthleteNames = taggedAthletes.map(sanitizedName => {
+                return nameMapping[sanitizedName] || sanitizedName.replace(/_/g, ' ');
+            });
+
+            // Aggregate data for all tagged athletes
+            let totalRoyalties = 0;
+            let totalOrders = 0;
+            let gameJerseys = 0;
+            let otherItems = 0;
+            let jersey20Count = 0;
+            const monthlyData = {};
+            const organizationData = [];
+
+            originalAthleteNames.forEach(athleteName => {
+                const athleteSales = athleteData[athleteName] || [];
+                athleteSales.forEach(row => {
+                    organizationData.push({ ...row, athlete_name: athleteName });
+
+                    const royalty = calculateRoyalty(row);
+                    totalRoyalties += royalty;
+                    totalOrders++;
+
+                    const isGameJersey = row.is_game_jersey === true ||
+                                        row.is_game_jersey === 'true' ||
+                                        row.is_game_jersey === 1;
+
+                    if (isGameJersey) {
+                        gameJerseys++;
+                    } else {
+                        otherItems++;
+                    }
+
+                    const hasJersey20 = row.has_jersey20 === true ||
+                                       row.has_jersey20 === 'true' ||
+                                       row.has_jersey20 === 1;
+
+                    if (hasJersey20) {
+                        jersey20Count++;
+                    }
+
+                    const month = row.month_year || '2024-01';
+                    monthlyData[month] = (monthlyData[month] || 0) + royalty;
+                });
+            });
+
+            // Update stats
+            document.getElementById('totalRoyalties').textContent = `$${Math.round(totalRoyalties)}`;
+            document.getElementById('totalOrders').textContent = totalOrders;
+            document.getElementById('gameJerseys').textContent = gameJerseys;
+            document.getElementById('otherItems').textContent = otherItems;
+
+            if (jersey20Count > 0) {
+                document.getElementById('jersey20Alert').style.display = 'block';
+                document.getElementById('jersey20Count').textContent = jersey20Count;
+            } else {
+                document.getElementById('jersey20Alert').style.display = 'none';
+            }
+
+            // Render monthly chart
+            const chartDiv = document.getElementById('monthChart');
+            chartDiv.innerHTML = '';
+
+            const months = Object.keys(monthlyData).sort();
+            if (months.length > 0) {
+                const maxValue = Math.max(...Object.values(monthlyData), 1);
+
+                months.forEach(month => {
+                    const value = monthlyData[month];
+                    const height = (value / maxValue) * 250;
+
+                    const bar = document.createElement('div');
+                    bar.className = 'bar';
+                    bar.style.height = `${Math.max(height, 20)}px`;
+                    bar.innerHTML = `
+                        <div class="bar-value">$${Math.round(value)}</div>
+                        <div class="bar-label">${month}</div>
+                    `;
+                    chartDiv.appendChild(bar);
+                });
+            } else {
+                chartDiv.innerHTML = '<p style="text-align: center; color: #999;">No monthly data available</p>';
+            }
+
+            // Render order table
+            window.tableData = organizationData.slice().sort((a, b) => {
+                const dateA = a.created_at ? new Date(a.created_at) : new Date(0);
+                const dateB = b.created_at ? new Date(b.created_at) : new Date(0);
+                return dateB - dateA;
+            });
+
+            // Update table to show athlete names
+            const tbody = document.getElementById('ordersTable');
+            tbody.innerHTML = '';
+
+            if (window.tableData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No orders found for athletes in this organization</td></tr>';
+            } else {
+                window.tableData.forEach(row => {
+                    const tr = document.createElement('tr');
+                    const date = row.created_at ? new Date(row.created_at).toLocaleDateString() : 'N/A';
+                    const productName = row.product_name || row.lineitem_name || 'Unknown Product';
+
+                    const hasJersey20 = row.has_jersey20 === true ||
+                                       row.has_jersey20 === 'true' ||
+                                       row.has_jersey20 === 1;
+
+                    const royalty = calculateRoyalty(row);
+
+                    tr.innerHTML = `
+                        <td>${row.order_number || 'N/A'}</td>
+                        <td>${row.athlete_name}<br><small style="color: #666;">${productName}</small></td>
+                        <td>${date}</td>
+                        <td>${hasJersey20 ? '<span class="badge badge-warning">JERSEY20</span>' : '-'}</td>
+                        <td>$${royalty}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+
+            // Hide admin tools
+            document.getElementById('adminToolsPanel').style.display = 'none';
+        }
+
+        // Modal close functions
+        function closeEditOrganizationModal() {
+            document.getElementById('editOrganizationModal').style.display = 'none';
+        }
+
+        function closeViewOrgAthletesModal() {
+            document.getElementById('viewOrgAthletesModal').style.display = 'none';
+        }
+
+        // ========== END ORGANIZATION MANAGEMENT FUNCTIONS ==========
 
         // Toggle Order History Collapsible
         function toggleOrderHistory() {
