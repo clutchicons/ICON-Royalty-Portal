@@ -1543,14 +1543,20 @@
                     const codesSnapshot = await database.ref('accessCodes').once('value');
                     const sanitizedCodes = codesSnapshot.val() || {};
 
-                    // Load name mapping to get original names
-                    const mappingSnapshot = await database.ref('nameMapping').once('value');
-                    const nameMapping = mappingSnapshot.val() || {};
+                    // Try to load name mapping to get original names (optional)
+                    let nameMapping = {};
+                    try {
+                        const mappingSnapshot = await database.ref('nameMapping').once('value');
+                        nameMapping = mappingSnapshot.val() || {};
+                    } catch (mappingError) {
+                        console.warn('Could not load name mapping (may not have permissions yet):', mappingError.message);
+                        // Continue without mapping - will use sanitized names converted back
+                    }
 
                     // Reconstruct accessCodes with original names as keys
                     accessCodes = {};
                     Object.keys(sanitizedCodes).forEach(sanitizedName => {
-                        const originalName = nameMapping[sanitizedName] || sanitizedName;
+                        const originalName = nameMapping[sanitizedName] || sanitizedName.replace(/_/g, ' ');
                         accessCodes[originalName] = sanitizedCodes[sanitizedName];
                     });
 
@@ -2416,7 +2422,41 @@
         async function loadAthleteOrganizations() {
             try {
                 const snapshot = await database.ref('athleteOrganizations').once('value');
-                athleteOrganizations = snapshot.val() || {};
+                const sanitizedMappings = snapshot.val() || {};
+
+                // Try to load name mapping to convert sanitized keys back to original names
+                let nameMapping = {};
+                try {
+                    const mappingSnapshot = await database.ref('nameMapping').once('value');
+                    nameMapping = mappingSnapshot.val() || {};
+                } catch (mappingError) {
+                    console.warn('Could not load name mapping, will attempt to match by sanitization:', mappingError.message);
+                }
+
+                // Convert sanitized keys back to original athlete names
+                athleteOrganizations = {};
+                Object.keys(sanitizedMappings).forEach(sanitizedKey => {
+                    const orgId = sanitizedMappings[sanitizedKey];
+
+                    // Try to get original name from mapping
+                    let originalName = nameMapping[sanitizedKey];
+
+                    // If no mapping, try to find matching athlete by comparing sanitized versions
+                    if (!originalName && athletesList.length > 0) {
+                        const matchingAthlete = athletesList.find(athlete =>
+                            sanitizeFirebaseKey(athlete) === sanitizedKey
+                        );
+                        originalName = matchingAthlete;
+                    }
+
+                    // Fallback: convert underscores back to spaces
+                    if (!originalName) {
+                        originalName = sanitizedKey.replace(/_/g, ' ');
+                    }
+
+                    athleteOrganizations[originalName] = orgId;
+                });
+
                 console.log('Loaded', Object.keys(athleteOrganizations).length, 'athlete-organization mappings');
                 return athleteOrganizations;
             } catch (error) {
@@ -2712,8 +2752,7 @@
 
             // Get current organization
             await loadAthleteOrganizations();
-            const sanitizedName = sanitizeFirebaseKey(athleteName);
-            const currentOrgId = athleteOrganizations[sanitizedName] || athleteOrganizations[athleteName];
+            const currentOrgId = athleteOrganizations[athleteName];
 
             if (currentOrgId && allOrganizations[currentOrgId]) {
                 document.getElementById('currentOrgTag').textContent = allOrganizations[currentOrgId].name;
@@ -2849,17 +2888,9 @@
 
             document.getElementById('athleteName').textContent = org.name + ' (Organization)';
 
-            // Get tagged athletes
-            const taggedAthletes = Object.keys(athleteOrganizations).filter(sanitizedName => {
-                return athleteOrganizations[sanitizedName] === orgId;
-            });
-
-            // Get original athlete names from nameMapping
-            const mappingSnapshot = await database.ref('nameMapping').once('value');
-            const nameMapping = mappingSnapshot.val() || {};
-
-            const originalAthleteNames = taggedAthletes.map(sanitizedName => {
-                return nameMapping[sanitizedName] || sanitizedName.replace(/_/g, ' ');
+            // Get tagged athletes (athleteOrganizations now uses original names as keys)
+            const taggedAthletes = Object.keys(athleteOrganizations).filter(athleteName => {
+                return athleteOrganizations[athleteName] === orgId;
             });
 
             // Aggregate data for all tagged athletes
@@ -2871,7 +2902,7 @@
             const monthlyData = {};
             const organizationData = [];
 
-            originalAthleteNames.forEach(athleteName => {
+            taggedAthletes.forEach(athleteName => {
                 const athleteSales = athleteData[athleteName] || [];
                 athleteSales.forEach(row => {
                     organizationData.push({ ...row, athlete_name: athleteName });
