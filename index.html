@@ -93,7 +93,8 @@
             max-height: 200px;
             overflow-y: auto;
             display: none;
-            z-index: 1000;
+            z-index: 2500;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
         
         .suggestions.active {
@@ -523,6 +524,7 @@
 
         .collapsible-content.open {
             max-height: 2000px;
+            overflow: visible;
             transition: max-height 0.5s ease-in;
         }
 
@@ -2749,6 +2751,26 @@
             // Show athlete info section
             document.getElementById('athleteTagInfo').style.display = 'block';
             document.getElementById('selectedAthleteName').textContent = athleteName;
+
+            // Reload organizations to get latest data (in case new orgs were created)
+            await loadAllOrganizations();
+
+            // Repopulate the organization dropdown with latest data
+            const orgTagSelect = document.getElementById('orgTagSelect');
+            const currentSelection = orgTagSelect.value; // Save current selection
+            orgTagSelect.innerHTML = '<option value="">-- No Organization --</option>';
+
+            const orgIds = Object.keys(allOrganizations).sort((a, b) => {
+                return allOrganizations[a].name.localeCompare(allOrganizations[b].name);
+            });
+
+            orgIds.forEach(orgId => {
+                const org = allOrganizations[orgId];
+                const option = document.createElement('option');
+                option.value = orgId;
+                option.textContent = org.name;
+                orgTagSelect.appendChild(option);
+            });
 
             // Get current organization
             await loadAthleteOrganizations();
