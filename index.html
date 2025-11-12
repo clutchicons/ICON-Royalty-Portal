@@ -1092,14 +1092,14 @@
                                 </div>
                                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
                                     <div>
-                                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">Referral Per Sale ($)</label>
+                                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">Signup Bonus Per Athlete ($)</label>
                                         <input type="number" id="newOrgReferralPerSale" placeholder="e.g., 5" step="0.01" min="0" value="0" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0;">
-                                        <small style="color: #666; display: block; margin-top: 5px;">Fixed amount earned per athlete sale</small>
+                                        <small style="color: #666; display: block; margin-top: 5px;">One-time payment per athlete signed up</small>
                                     </div>
                                     <div>
                                         <label style="display: block; margin-bottom: 5px; font-weight: 600;">Bonus Percentage (%)</label>
                                         <input type="number" id="newOrgBonusPercentage" placeholder="e.g., 20" step="0.1" min="0" max="100" value="0" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0;">
-                                        <small style="color: #666; display: block; margin-top: 5px;">% bonus on athlete royalties</small>
+                                        <small style="color: #666; display: block; margin-top: 5px;">% bonus on all athlete sales</small>
                                     </div>
                                 </div>
                                 <button class="btn" onclick="createOrganization()" style="width: auto; padding: 10px 30px;">
@@ -1115,7 +1115,7 @@
                                         <thead>
                                             <tr>
                                                 <th>Organization Name</th>
-                                                <th>Referral/Sale</th>
+                                                <th>Signup Bonus</th>
                                                 <th>Bonus %</th>
                                                 <th>Tagged Athletes</th>
                                                 <th>Actions</th>
@@ -1308,15 +1308,15 @@
             </div>
 
             <div class="form-group">
-                <label for="editOrgReferralPerSale">Referral Per Sale ($)</label>
+                <label for="editOrgReferralPerSale">Signup Bonus Per Athlete ($)</label>
                 <input type="number" id="editOrgReferralPerSale" placeholder="e.g., 5" step="0.01" min="0">
-                <small style="color: #666; display: block; margin-top: 5px;">Fixed amount earned per athlete sale</small>
+                <small style="color: #666; display: block; margin-top: 5px;">One-time payment per athlete signed up</small>
             </div>
 
             <div class="form-group">
                 <label for="editOrgBonusPercentage">Bonus Percentage (%)</label>
                 <input type="number" id="editOrgBonusPercentage" placeholder="e.g., 20" step="0.1" min="0" max="100">
-                <small style="color: #666; display: block; margin-top: 5px;">% bonus on athlete royalties</small>
+                <small style="color: #666; display: block; margin-top: 5px;">% bonus on all athlete sales</small>
             </div>
 
             <button class="btn" onclick="confirmEditOrganization()">Update Organization</button>
@@ -3098,11 +3098,11 @@
             });
 
             // Calculate organization earnings
-            const referralPerSale = org.referralPerSale || 0;
+            const signupBonus = org.referralPerSale || 0;
             const bonusPercentage = org.bonusPercentage || 0;
-            const referralEarnings = totalOrders * referralPerSale;
+            const signupEarnings = taggedAthletes.length * signupBonus; // One-time per athlete
             const bonusEarnings = totalRoyalties * (bonusPercentage / 100);
-            const totalOrgEarnings = referralEarnings + bonusEarnings;
+            const totalOrgEarnings = signupEarnings + bonusEarnings;
 
             // Update stats - show organization earnings plus athlete royalties
             document.getElementById('totalRoyalties').innerHTML = `
@@ -3112,7 +3112,7 @@
                     <div style="font-size: 0.9em; color: #666;">Organization Earnings</div>
                     <div style="font-size: 1.3em; color: #28a745; font-weight: bold;">$${Math.round(totalOrgEarnings)}</div>
                     <div style="font-size: 0.8em; color: #666; margin-top: 5px;">
-                        Referral: $${Math.round(referralEarnings)} | Bonus: $${Math.round(bonusEarnings)}
+                        Signup Bonuses: $${Math.round(signupEarnings)} (${taggedAthletes.length} athletes) | Sales Bonus: $${Math.round(bonusEarnings)}
                     </div>
                 </div>
             `;
