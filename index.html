@@ -206,6 +206,8 @@
         td {
             padding: 12px;
             border-bottom: 1px solid #f0f0f0;
+            word-wrap: break-word;
+            max-width: 300px;
         }
         
         tr:hover {
@@ -374,6 +376,8 @@
             height: 100%;
             background-color: rgba(0, 0, 0, 0.7);
             animation: fadeIn 0.3s;
+            overflow-y: auto;
+            padding: 20px 0;
         }
 
         @keyframes fadeIn {
@@ -383,11 +387,14 @@
 
         .modal-content {
             background-color: white;
-            margin: 10% auto;
+            margin: 20px auto;
             padding: 40px;
             max-width: 500px;
+            max-height: calc(100vh - 80px);
+            overflow-y: auto;
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
             animation: slideDown 0.3s;
+            position: relative;
         }
 
         @keyframes slideDown {
@@ -2155,12 +2162,21 @@
                                    row.has_jersey20 === 'true' ||
                                    row.has_jersey20 === 1;
 
+                // Check if this is organization view (has athlete_name field from organizationData)
+                const productDisplay = row.athlete_name
+                    ? `${row.athlete_name}<br><small style="color: #666;">${productName}</small>`
+                    : productName;
+
+                const royalty = row.calculated_royalty !== undefined
+                    ? row.calculated_royalty
+                    : (row.final_royalty !== undefined ? row.final_royalty : calculateRoyalty(row));
+
                 tr.innerHTML = `
                     <td>${row.order_number || 'N/A'}</td>
-                    <td>${productName}</td>
+                    <td>${productDisplay}</td>
                     <td>${date}</td>
                     <td>${hasJersey20 ? '<span class="badge badge-warning">JERSEY20</span>' : '-'}</td>
-                    <td>$${row.calculated_royalty !== undefined ? row.calculated_royalty : (row.final_royalty || 0)}</td>
+                    <td>$${royalty}</td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -3152,41 +3168,15 @@
                 chartDiv.innerHTML = '<p style="text-align: center; color: #999;">No monthly data available</p>';
             }
 
-            // Render order table
+            // Render order table with pagination
             window.tableData = organizationData.slice().sort((a, b) => {
                 const dateA = a.created_at ? new Date(a.created_at) : new Date(0);
                 const dateB = b.created_at ? new Date(b.created_at) : new Date(0);
                 return dateB - dateA;
             });
 
-            // Update table to show athlete names
-            const tbody = document.getElementById('ordersTable');
-            tbody.innerHTML = '';
-
-            if (window.tableData.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No orders found for athletes in this organization</td></tr>';
-            } else {
-                window.tableData.forEach(row => {
-                    const tr = document.createElement('tr');
-                    const date = row.created_at ? new Date(row.created_at).toLocaleDateString() : 'N/A';
-                    const productName = row.product_name || row.lineitem_name || 'Unknown Product';
-
-                    const hasJersey20 = row.has_jersey20 === true ||
-                                       row.has_jersey20 === 'true' ||
-                                       row.has_jersey20 === 1;
-
-                    const royalty = calculateRoyalty(row);
-
-                    tr.innerHTML = `
-                        <td>${row.order_number || 'N/A'}</td>
-                        <td>${row.athlete_name}<br><small style="color: #666;">${productName}</small></td>
-                        <td>${date}</td>
-                        <td>${hasJersey20 ? '<span class="badge badge-warning">JERSEY20</span>' : '-'}</td>
-                        <td>$${royalty}</td>
-                    `;
-                    tbody.appendChild(tr);
-                });
-            }
+            // Use the pagination-aware renderTable function
+            renderTable(window.tableData, true);
 
             // Hide admin tools
             document.getElementById('adminToolsPanel').style.display = 'none';
