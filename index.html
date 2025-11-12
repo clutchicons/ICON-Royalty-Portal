@@ -967,6 +967,30 @@
                         </table>
                     </div>
 
+                    <!-- Pagination Controls -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <label style="font-weight: 600;">Show:</label>
+                            <select id="pageSize" onchange="changePageSize()" style="padding: 8px; border: 2px solid #e0e0e0; border-radius: 4px;">
+                                <option value="25">25</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                                <option value="all">All</option>
+                            </select>
+                            <span style="color: #666;">entries</span>
+                        </div>
+
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <button onclick="previousPage()" id="prevPageBtn" class="btn" style="padding: 8px 16px; width: auto; background: #6c757d;">Previous</button>
+                            <span id="pageInfo" style="font-weight: 600; color: #0b1215;">Page 1 of 1</span>
+                            <button onclick="nextPage()" id="nextPageBtn" class="btn" style="padding: 8px 16px; width: auto; background: #6c757d;">Next</button>
+                        </div>
+
+                        <div style="color: #666;">
+                            Showing <span id="showingRange">0-0</span> of <span id="totalEntries">0</span>
+                        </div>
+                    </div>
+
                     <button class="export-btn" onclick="exportData()">Export My Data</button>
                 </div>
             </div>
@@ -1066,6 +1090,18 @@
                                         <input type="password" id="newOrgPassword" placeholder="Organization password" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0;">
                                     </div>
                                 </div>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                                    <div>
+                                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">Referral Per Sale ($)</label>
+                                        <input type="number" id="newOrgReferralPerSale" placeholder="e.g., 5" step="0.01" min="0" value="0" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0;">
+                                        <small style="color: #666; display: block; margin-top: 5px;">Fixed amount earned per athlete sale</small>
+                                    </div>
+                                    <div>
+                                        <label style="display: block; margin-bottom: 5px; font-weight: 600;">Bonus Percentage (%)</label>
+                                        <input type="number" id="newOrgBonusPercentage" placeholder="e.g., 20" step="0.1" min="0" max="100" value="0" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0;">
+                                        <small style="color: #666; display: block; margin-top: 5px;">% bonus on athlete royalties</small>
+                                    </div>
+                                </div>
                                 <button class="btn" onclick="createOrganization()" style="width: auto; padding: 10px 30px;">
                                     Create Organization
                                 </button>
@@ -1079,13 +1115,14 @@
                                         <thead>
                                             <tr>
                                                 <th>Organization Name</th>
-                                                <th>ID</th>
+                                                <th>Referral/Sale</th>
+                                                <th>Bonus %</th>
                                                 <th>Tagged Athletes</th>
                                                 <th>Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody id="organizationsTableBody">
-                                            <tr><td colspan="4" style="text-align: center;">Loading...</td></tr>
+                                            <tr><td colspan="5" style="text-align: center;">Loading...</td></tr>
                                         </tbody>
                                     </table>
                                 </div>
@@ -1270,6 +1307,18 @@
                 <input type="password" id="editOrgPassword" placeholder="New password">
             </div>
 
+            <div class="form-group">
+                <label for="editOrgReferralPerSale">Referral Per Sale ($)</label>
+                <input type="number" id="editOrgReferralPerSale" placeholder="e.g., 5" step="0.01" min="0">
+                <small style="color: #666; display: block; margin-top: 5px;">Fixed amount earned per athlete sale</small>
+            </div>
+
+            <div class="form-group">
+                <label for="editOrgBonusPercentage">Bonus Percentage (%)</label>
+                <input type="number" id="editOrgBonusPercentage" placeholder="e.g., 20" step="0.1" min="0" max="100">
+                <small style="color: #666; display: block; margin-top: 5px;">% bonus on athlete royalties</small>
+            </div>
+
             <button class="btn" onclick="confirmEditOrganization()">Update Organization</button>
         </div>
     </div>
@@ -1316,6 +1365,11 @@
         let selectedAthleteForTag = null;
         let currentOrganization = null;
         let currentLoginType = 'athlete';
+
+        // Pagination variables
+        let currentPage = 1;
+        let pageSize = 25;
+        let filteredTableData = [];
 
         // Firebase Configuration
         const firebaseConfig = {
@@ -2056,54 +2110,128 @@
             }
         }
 
-        function renderTable(data) {
+        function renderTable(data, resetPage = false) {
+            // Store filtered data for pagination
+            filteredTableData = data;
+
+            if (resetPage) {
+                currentPage = 1;
+            }
+
             const tbody = document.getElementById('ordersTable');
             tbody.innerHTML = '';
-            
+
             if (data.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No orders found</td></tr>';
+                updatePaginationInfo(0, 0, 0);
                 return;
             }
-            
-            data.forEach(row => {
+
+            // Calculate pagination
+            const totalEntries = data.length;
+            const entriesPerPage = pageSize === 'all' ? totalEntries : parseInt(pageSize);
+            const totalPages = Math.ceil(totalEntries / entriesPerPage);
+
+            // Ensure current page is valid
+            if (currentPage > totalPages) {
+                currentPage = totalPages;
+            }
+            if (currentPage < 1) {
+                currentPage = 1;
+            }
+
+            // Calculate slice indices
+            const startIndex = (currentPage - 1) * entriesPerPage;
+            const endIndex = pageSize === 'all' ? totalEntries : Math.min(startIndex + entriesPerPage, totalEntries);
+            const pageData = data.slice(startIndex, endIndex);
+
+            // Render rows
+            pageData.forEach(row => {
                 const tr = document.createElement('tr');
                 const date = row.created_at ? new Date(row.created_at).toLocaleDateString() : 'N/A';
                 const productName = row.product_name || row.lineitem_name || 'Unknown Product';
-                
-                const hasJersey20 = row.has_jersey20 === true || 
-                                   row.has_jersey20 === 'true' || 
+
+                const hasJersey20 = row.has_jersey20 === true ||
+                                   row.has_jersey20 === 'true' ||
                                    row.has_jersey20 === 1;
-                
+
                 tr.innerHTML = `
                     <td>${row.order_number || 'N/A'}</td>
                     <td>${productName}</td>
                     <td>${date}</td>
                     <td>${hasJersey20 ? '<span class="badge badge-warning">JERSEY20</span>' : '-'}</td>
-                    <td>${row.calculated_royalty !== undefined ? row.calculated_royalty : (row.final_royalty || 0)}</td>
+                    <td>$${row.calculated_royalty !== undefined ? row.calculated_royalty : (row.final_royalty || 0)}</td>
                 `;
                 tbody.appendChild(tr);
             });
+
+            // Update pagination info
+            updatePaginationInfo(startIndex + 1, endIndex, totalEntries);
+            updatePaginationButtons(currentPage, totalPages);
         }
-        
+
+        function updatePaginationInfo(start, end, total) {
+            document.getElementById('showingRange').textContent = `${start}-${end}`;
+            document.getElementById('totalEntries').textContent = total;
+
+            const totalPages = pageSize === 'all' ? 1 : Math.ceil(total / parseInt(pageSize));
+            document.getElementById('pageInfo').textContent = `Page ${currentPage} of ${totalPages}`;
+        }
+
+        function updatePaginationButtons(page, totalPages) {
+            const prevBtn = document.getElementById('prevPageBtn');
+            const nextBtn = document.getElementById('nextPageBtn');
+
+            prevBtn.disabled = page <= 1;
+            nextBtn.disabled = page >= totalPages || pageSize === 'all';
+
+            prevBtn.style.opacity = prevBtn.disabled ? '0.5' : '1';
+            nextBtn.style.opacity = nextBtn.disabled ? '0.5' : '1';
+            prevBtn.style.cursor = prevBtn.disabled ? 'not-allowed' : 'pointer';
+            nextBtn.style.cursor = nextBtn.disabled ? 'not-allowed' : 'pointer';
+        }
+
+        function changePageSize() {
+            const select = document.getElementById('pageSize');
+            pageSize = select.value;
+            currentPage = 1;
+            renderTable(filteredTableData);
+        }
+
+        function previousPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                renderTable(filteredTableData);
+            }
+        }
+
+        function nextPage() {
+            const totalPages = pageSize === 'all' ? 1 : Math.ceil(filteredTableData.length / parseInt(pageSize));
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderTable(filteredTableData);
+            }
+        }
+
         function filterTable() {
             const searchTerm = document.getElementById('tableSearch').value.toLowerCase();
-            
+
             if (!searchTerm) {
-                renderTable(window.tableData);
+                renderTable(window.tableData, true);
                 return;
             }
-            
+
             const filtered = window.tableData.filter(row => {
                 const orderNum = (row.order_number || '').toString().toLowerCase();
                 const productName = (row.product_name || '').toLowerCase();
                 const lineitemName = (row.lineitem_name || '').toLowerCase();
-                
+
                 return orderNum.includes(searchTerm) ||
                        productName.includes(searchTerm) ||
                        lineitemName.includes(searchTerm);
             });
-            
-            renderTable(filtered);
+
+            renderTable(filtered, true);
         }
         
         function logout() {
@@ -2471,6 +2599,8 @@
         async function createOrganization() {
             const name = document.getElementById('newOrgName').value.trim();
             const password = document.getElementById('newOrgPassword').value;
+            const referralPerSale = parseFloat(document.getElementById('newOrgReferralPerSale').value) || 0;
+            const bonusPercentage = parseFloat(document.getElementById('newOrgBonusPercentage').value) || 0;
 
             if (!name) {
                 alert('Please enter an organization name');
@@ -2494,6 +2624,8 @@
                 const orgData = {
                     name: name,
                     password: password,
+                    referralPerSale: referralPerSale,
+                    bonusPercentage: bonusPercentage,
                     createdAt: Date.now()
                 };
 
@@ -2503,6 +2635,8 @@
                 alert(`Organization "${name}" created successfully!`);
                 document.getElementById('newOrgName').value = '';
                 document.getElementById('newOrgPassword').value = '';
+                document.getElementById('newOrgReferralPerSale').value = '0';
+                document.getElementById('newOrgBonusPercentage').value = '0';
 
                 await refreshOrganizationsTable();
                 await populateOrganizationSelects();
@@ -2523,7 +2657,7 @@
             const orgIds = Object.keys(allOrganizations).sort();
 
             if (orgIds.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">No organizations found</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No organizations found</td></tr>';
                 return;
             }
 
@@ -2538,8 +2672,9 @@
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td>${org.name}</td>
-                    <td><code style="background: #f8f9fa; padding: 4px 8px; border-radius: 4px; font-family: 'Courier New', monospace; color: #8a2be2;">${orgId}</code></td>
-                    <td>${taggedAthletes.length} athlete(s)</td>
+                    <td style="text-align: center;">$${(org.referralPerSale || 0).toFixed(2)}</td>
+                    <td style="text-align: center;">${(org.bonusPercentage || 0)}%</td>
+                    <td style="text-align: center;">${taggedAthletes.length} athlete(s)</td>
                     <td>
                         <button class="btn" onclick="viewOrganizationAthletes('${orgId}')" style="padding: 5px 10px; font-size: 0.9em; background: #17a2b8; margin-right: 5px;">
                             View Athletes
@@ -2564,6 +2699,8 @@
             document.getElementById('editOrgId').value = orgId;
             document.getElementById('editOrgName').value = org.name;
             document.getElementById('editOrgPassword').value = '';
+            document.getElementById('editOrgReferralPerSale').value = org.referralPerSale || 0;
+            document.getElementById('editOrgBonusPercentage').value = org.bonusPercentage || 0;
             document.getElementById('editOrganizationModal').style.display = 'block';
         }
 
@@ -2572,6 +2709,8 @@
             const orgId = document.getElementById('editOrgId').value;
             const newName = document.getElementById('editOrgName').value.trim();
             const newPassword = document.getElementById('editOrgPassword').value;
+            const referralPerSale = parseFloat(document.getElementById('editOrgReferralPerSale').value) || 0;
+            const bonusPercentage = parseFloat(document.getElementById('editOrgBonusPercentage').value) || 0;
 
             if (!newName) {
                 alert('Please enter an organization name');
@@ -2580,7 +2719,9 @@
 
             try {
                 const updates = {
-                    name: newName
+                    name: newName,
+                    referralPerSale: referralPerSale,
+                    bonusPercentage: bonusPercentage
                 };
 
                 if (newPassword && newPassword.length >= 6) {
@@ -2956,8 +3097,25 @@
                 });
             });
 
-            // Update stats
-            document.getElementById('totalRoyalties').textContent = `$${Math.round(totalRoyalties)}`;
+            // Calculate organization earnings
+            const referralPerSale = org.referralPerSale || 0;
+            const bonusPercentage = org.bonusPercentage || 0;
+            const referralEarnings = totalOrders * referralPerSale;
+            const bonusEarnings = totalRoyalties * (bonusPercentage / 100);
+            const totalOrgEarnings = referralEarnings + bonusEarnings;
+
+            // Update stats - show organization earnings plus athlete royalties
+            document.getElementById('totalRoyalties').innerHTML = `
+                <div style="font-size: 0.9em; color: #666; margin-bottom: 5px;">Athlete Royalties</div>
+                <div style="font-size: 1.5em; color: #8a2be2;">$${Math.round(totalRoyalties)}</div>
+                <div style="margin-top: 10px; padding-top: 10px; border-top: 2px solid #e0e0e0;">
+                    <div style="font-size: 0.9em; color: #666;">Organization Earnings</div>
+                    <div style="font-size: 1.3em; color: #28a745; font-weight: bold;">$${Math.round(totalOrgEarnings)}</div>
+                    <div style="font-size: 0.8em; color: #666; margin-top: 5px;">
+                        Referral: $${Math.round(referralEarnings)} | Bonus: $${Math.round(bonusEarnings)}
+                    </div>
+                </div>
+            `;
             document.getElementById('totalOrders').textContent = totalOrders;
             document.getElementById('gameJerseys').textContent = gameJerseys;
             document.getElementById('otherItems').textContent = otherItems;
