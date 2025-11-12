@@ -2118,9 +2118,6 @@
         }
 
         function renderTable(data, resetPage = false) {
-            console.log('renderTable called with', data.length, 'items');
-            console.log('First item in data:', data[0]);
-
             // Store filtered data for pagination
             filteredTableData = data;
 
@@ -3071,18 +3068,9 @@
             document.getElementById('athleteName').textContent = org.name + ' (Organization)';
 
             // Get tagged athletes (athleteOrganizations now uses original names as keys)
-            console.log('All athleteOrganizations:', athleteOrganizations);
-            console.log('Looking for orgId:', orgId);
-
             const taggedAthletes = Object.keys(athleteOrganizations).filter(athleteName => {
                 return athleteOrganizations[athleteName] === orgId;
             });
-
-            console.log('Tagged athletes for', orgId, ':', taggedAthletes);
-            console.log('Number of tagged athletes:', taggedAthletes.length);
-
-            // Debug: Show what keys exist in athleteData
-            console.log('All keys in athleteData:', Object.keys(athleteData));
 
             // Aggregate data for all tagged athletes
             let totalRoyalties = 0;
@@ -3094,9 +3082,7 @@
             const organizationData = [];
 
             taggedAthletes.forEach(athleteName => {
-                console.log('Looking up sales for athlete:', athleteName);
                 const athleteSales = athleteData[athleteName] || [];
-                console.log('Found', athleteSales.length, 'sales for', athleteName);
                 athleteSales.forEach(row => {
                     organizationData.push({ ...row, athlete_name: athleteName });
 
@@ -3183,16 +3169,11 @@
             }
 
             // Render order table with pagination
-            console.log('organizationData contains', organizationData.length, 'sales');
-            console.log('First few organizationData entries:', organizationData.slice(0, 3));
-
             window.tableData = organizationData.slice().sort((a, b) => {
                 const dateA = a.created_at ? new Date(a.created_at) : new Date(0);
                 const dateB = b.created_at ? new Date(b.created_at) : new Date(0);
                 return dateB - dateA;
             });
-
-            console.log('window.tableData set to', window.tableData.length, 'items');
 
             // Use the pagination-aware renderTable function
             renderTable(window.tableData, true);
