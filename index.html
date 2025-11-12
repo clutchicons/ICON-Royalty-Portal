@@ -387,10 +387,10 @@
 
         .modal-content {
             background-color: white;
-            margin: 20px auto;
+            margin: 40px auto;
             padding: 40px;
             max-width: 500px;
-            max-height: calc(100vh - 80px);
+            max-height: calc(100vh - 100px);
             overflow-y: auto;
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
             animation: slideDown 0.3s;
@@ -3068,9 +3068,15 @@
             document.getElementById('athleteName').textContent = org.name + ' (Organization)';
 
             // Get tagged athletes (athleteOrganizations now uses original names as keys)
+            console.log('All athleteOrganizations:', athleteOrganizations);
+            console.log('Looking for orgId:', orgId);
+
             const taggedAthletes = Object.keys(athleteOrganizations).filter(athleteName => {
                 return athleteOrganizations[athleteName] === orgId;
             });
+
+            console.log('Tagged athletes for', orgId, ':', taggedAthletes);
+            console.log('Number of tagged athletes:', taggedAthletes.length);
 
             // Aggregate data for all tagged athletes
             let totalRoyalties = 0;
