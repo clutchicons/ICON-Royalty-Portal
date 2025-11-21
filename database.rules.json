@@ -1,0 +1,45 @@
+{
+  "rules": {
+    "athletes": {
+      ".read": true,
+      ".write": true,
+      ".indexOn": ["name", "organization"]
+    },
+    "salesByAthlete": {
+      ".read": true,
+      ".write": true,
+      "$athleteName": {
+        ".indexOn": ["month_year", "created_at"]
+      }
+    },
+    "royaltyData": {
+      ".read": true,
+      ".write": true,
+      ".indexOn": ["athlete_name", "month_year"]
+    },
+    "accessCodes": {
+      ".read": true,
+      ".write": true
+    },
+    "nameMapping": {
+      ".read": true,
+      ".write": true
+    },
+    "customPasswords": {
+      ".read": true,
+      ".write": true
+    },
+    "organizations": {
+      ".read": true,
+      ".write": true
+    },
+    "athleteOrganizations": {
+      ".read": true,
+      ".write": true
+    },
+    "athleteNotes": {
+      ".read": true,
+      ".write": true
+    }
+  }
+}
