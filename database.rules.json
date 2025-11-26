@@ -1,0 +1,68 @@
+{
+  "rules": {
+    "athletes": {
+      ".read": true,
+      ".write": "auth != null && (root.child('userRoles/' + auth.uid + '/role').val() === 'admin' || root.child('userRoles/' + auth.uid + '/role').val() === 'super_admin')",
+      ".indexOn": ["name", "organization", "uid"],
+      "$athleteName": {
+        "uid": {
+          ".write": "auth != null && newData.val() === auth.uid"
+        },
+        "referrals": {
+          ".write": "auth != null && (root.child('athletes/' + $athleteName + '/uid').val() === auth.uid || root.child('userRoles/' + auth.uid + '/role').val() === 'admin')"
+        }
+      }
+    },
+    "salesByAthlete": {
+      ".read": "auth != null",
+      ".write": true,
+      "$athleteName": {
+        ".indexOn": ["month_year", "created_at", "order_number"]
+      }
+    },
+    "royaltyData": {
+      ".read": "auth != null",
+      ".write": true,
+      ".indexOn": ["athlete_name", "month_year"]
+    },
+    "accessCodes": {
+      ".read": false,
+      ".write": false
+    },
+    "nameMapping": {
+      ".read": true,
+      ".write": "auth != null && root.child('userRoles/' + auth.uid + '/role').val() === 'admin'"
+    },
+    "customPasswords": {
+      ".read": false,
+      ".write": false
+    },
+    "organizations": {
+      ".read": true,
+      ".write": "auth != null && root.child('userRoles/' + auth.uid + '/role').val() === 'admin'",
+      "$orgId": {
+        ".read": true,
+        "uid": {
+          ".write": "auth != null && newData.val() === auth.uid"
+        },
+        "referrals": {
+          ".write": "auth != null && (root.child('organizations/' + $orgId + '/uid').val() === auth.uid || root.child('userRoles/' + auth.uid + '/role').val() === 'admin')"
+        }
+      }
+    },
+    "athleteOrganizations": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('userRoles/' + auth.uid + '/role').val() === 'admin'"
+    },
+    "athleteNotes": {
+      ".read": "auth != null",
+      ".write": "auth != null && (root.child('userRoles/' + auth.uid + '/role').val() === 'admin' || root.child('userRoles/' + auth.uid + '/role').val() === 'organization')"
+    },
+    "userRoles": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    }
+  }
+}
