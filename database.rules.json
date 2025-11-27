@@ -34,8 +34,8 @@
       ".write": "auth != null && root.child('userRoles/' + auth.uid + '/role').val() === 'admin'"
     },
     "customPasswords": {
-      ".read": false,
-      ".write": false
+      ".read": "auth != null && (root.child('userRoles/' + auth.uid + '/role').val() === 'admin' || root.child('userRoles/' + auth.uid + '/role').val() === 'super_admin')",
+      ".write": "auth != null && (root.child('userRoles/' + auth.uid + '/role').val() === 'admin' || root.child('userRoles/' + auth.uid + '/role').val() === 'super_admin')"
     },
     "organizations": {
       ".read": true,

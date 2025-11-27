@@ -2018,8 +2018,15 @@
                     console.log('✅ Password updated in Firebase Auth');
                 }
 
-                // Also update in database for backward compatibility
-                await setStoredPassword(currentAthlete, newPassword);
+                // Also update in database for backward compatibility (optional, may fail due to permissions)
+                try {
+                    await setStoredPassword(currentAthlete, newPassword);
+                    console.log('✅ Password also saved to database');
+                } catch (dbError) {
+                    console.warn('Could not save password to database (non-critical):', dbError);
+                    // This is not critical - the Firebase Auth password is what matters for login
+                }
+
                 alert('Password changed successfully!');
                 closeFirstLoginModal();
             } catch (error) {
@@ -2074,15 +2081,22 @@
                     throw new Error('No authenticated user');
                 }
 
-                // Also update in database for backward compatibility
-                await setStoredPassword(currentAthlete, newPassword);
+                // Also update in database for backward compatibility (optional, may fail due to permissions)
+                try {
+                    await setStoredPassword(currentAthlete, newPassword);
+                    console.log('✅ Password also saved to database');
+                } catch (dbError) {
+                    console.warn('Could not save password to database (non-critical):', dbError);
+                    // This is not critical - the Firebase Auth password is what matters for login
+                }
+
                 alert('Password changed successfully!');
                 closePasswordModal();
 
             } catch (error) {
                 console.error('Error changing password:', error);
 
-                if (error.code === 'auth/wrong-password') {
+                if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
                     alert('Current password is incorrect');
                 } else if (error.code === 'auth/weak-password') {
                     alert('New password must be at least 6 characters');
