@@ -5114,9 +5114,10 @@
             infoDiv.innerHTML = `
                 <div style="background: #e3f2fd; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
                     <p style="margin: 0 0 10px 0; font-weight: 500;">Selected: ${referrerCode} (${referrerType})</p>
-                    <div style="display: flex; gap: 10px;">
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                         <button class="btn" onclick="markReferralAsSuccess()">Mark as Success</button>
                         <button class="btn" onclick="markReferralAsPending()">Mark as Pending</button>
+                        <button class="btn" onclick="deleteReferral()" style="background: #d32f2f;">Delete</button>
                         <button class="btn" onclick="clearReferralSelection()" style="background: #999;">Clear Selection</button>
                     </div>
                 </div>
@@ -5175,6 +5176,46 @@
             }).catch((error) => {
                 console.error('Error updating referral:', error);
                 alert('Error updating referral. Please try again.');
+            });
+        }
+
+        // Delete referral
+        function deleteReferral() {
+            if (!selectedReferralId) {
+                alert('Please select a referral first');
+                return;
+            }
+
+            // Get the referral details for confirmation
+            const referral = allReferralsData.find(ref =>
+                ref.id === selectedReferralId &&
+                ref.referrerCode === selectedReferrerCode &&
+                ref.referrerType === selectedReferrerType
+            );
+
+            if (!referral) {
+                alert('Referral not found');
+                return;
+            }
+
+            // Confirm deletion
+            const confirmMessage = `Are you sure you want to delete this referral?\n\nReferrer: ${selectedReferrerCode} (${selectedReferrerType})\nFriend: ${referral.friendName}\nStatus: ${referral.status}`;
+            if (!confirm(confirmMessage)) {
+                return;
+            }
+
+            const sanitizedCode = sanitizeFirebaseKey(selectedReferrerCode);
+            const refPath = selectedReferrerType === 'athlete'
+                ? `athletes/${sanitizedCode}/referrals/${selectedReferralId}`
+                : `organizations/${sanitizedCode}/referrals/${selectedReferralId}`;
+
+            firebase.database().ref(refPath).remove().then(() => {
+                alert('Referral deleted successfully!');
+                loadAllReferrals();
+                clearReferralSelection();
+            }).catch((error) => {
+                console.error('Error deleting referral:', error);
+                alert('Error deleting referral. Please try again.');
             });
         }
 
