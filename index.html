@@ -893,12 +893,12 @@
             }
 
             /* Referral section mobile styles */
-            #referralsPanel input[type="text"] {
+            #referralsContent input[type="text"] {
                 font-size: 14px;
                 padding: 8px;
             }
 
-            #referralsPanel .btn {
+            #referralsContent .btn {
                 width: 100%;
                 font-size: 14px;
                 padding: 10px;
@@ -1598,18 +1598,9 @@
                             <div class="reward-stat-label">Pending</div>
                         </div>
                     </div>
-                </div>
-            </div>
 
-            <!-- Referral Section (For both athletes and organizations) -->
-            <div id="referralsPanel" style="display: none;">
-                <div class="data-section">
-                    <div class="collapsible-header" onclick="toggleReferrals()">
-                        <h2 style="margin: 0;">Referrals (<span id="referralsCount">0</span>)</h2>
-                        <span class="collapsible-icon open" id="referralsIcon">▼</span>
-                    </div>
-
-                    <div class="collapsible-content open" id="referralsContent">
+                    <!-- Referrals Section (merged) -->
+                    <div id="referralsContent" style="margin-top: 30px; padding-top: 25px; border-top: 1px solid #e0e0e0;">
                         <p style="color: #666; margin-bottom: 20px;">
                             Refer friends to join ICON Royalty! Share your unique referral link and earn rewards when they sign up.
                         </p>
@@ -3661,12 +3652,9 @@
                 document.getElementById('adminToolsPanel').style.display = 'none';
             }
 
-            // Show referrals panel and load referrals for athletes
+            // Load referrals for athletes (referrals content is now in the rewards panel)
             if (currentAthlete !== 'ALL') {
-                document.getElementById('referralsPanel').style.display = 'block';
                 loadUserReferrals(currentAthlete);
-            } else {
-                document.getElementById('referralsPanel').style.display = 'none';
             }
         }
 
@@ -5317,8 +5305,7 @@
             await populateTaggedAthletesTable(taggedAthletes);
             document.getElementById('taggedAthletesPanel').style.display = 'block';
 
-            // Show referrals panel and load organization referrals
-            document.getElementById('referralsPanel').style.display = 'block';
+            // Load organization referrals (referrals content is now in the rewards panel)
             loadOrganizationReferrals(orgId);
 
             // Hide admin tools
@@ -5409,15 +5396,6 @@
         }
 
         // ========== REFERRAL SYSTEM FUNCTIONS ==========
-
-        // Toggle Referrals Collapsible
-        function toggleReferrals() {
-            const content = document.getElementById('referralsContent');
-            const icon = document.getElementById('referralsIcon');
-
-            content.classList.toggle('open');
-            icon.classList.toggle('open');
-        }
 
         // ========== GAMIFIED REFERRAL REWARDS FUNCTIONS ==========
 
@@ -5610,9 +5588,6 @@
                 // Sort by date (newest first)
                 referrals.sort((a, b) => new Date(b.dateReferred) - new Date(a.dateReferred));
 
-                // Update count
-                document.getElementById('referralsCount').textContent = referrals.length;
-
                 // Update gamified rewards journey UI
                 showRewardsJourneyPanel();
                 updateRewardsJourneyUI(referrals);
@@ -5657,9 +5632,6 @@
 
                 // Sort by date (newest first)
                 referrals.sort((a, b) => new Date(b.dateReferred) - new Date(a.dateReferred));
-
-                // Update count
-                document.getElementById('referralsCount').textContent = referrals.length;
 
                 // Update gamified rewards journey UI
                 showRewardsJourneyPanel();
