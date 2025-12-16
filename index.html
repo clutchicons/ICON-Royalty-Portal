@@ -958,6 +958,371 @@
                 background: white;
             }
         }
+
+        /* ========== GAMIFIED REFERRAL REWARDS STYLES ========== */
+        .rewards-journey {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .rewards-journey::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(138, 43, 226, 0.1) 0%, transparent 50%);
+            animation: pulse-bg 4s ease-in-out infinite;
+        }
+
+        @keyframes pulse-bg {
+            0%, 100% { transform: scale(1); opacity: 0.5; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+
+        .rewards-header {
+            text-align: center;
+            margin-bottom: 30px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .rewards-title {
+            font-size: 1.8em;
+            color: #fff;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .rewards-subtitle {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 1em;
+        }
+
+        .rewards-progress-container {
+            position: relative;
+            z-index: 1;
+            margin-bottom: 30px;
+        }
+
+        .rewards-progress-track {
+            background: rgba(255, 255, 255, 0.1);
+            height: 12px;
+            border-radius: 6px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .rewards-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #8a2be2, #da70d6, #ffd700);
+            border-radius: 6px;
+            transition: width 1s ease-out;
+            position: relative;
+        }
+
+        .rewards-progress-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .rewards-milestones {
+            display: flex;
+            justify-content: space-between;
+            position: relative;
+            margin-top: -6px;
+            padding: 0 10px;
+        }
+
+        .milestone {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+
+        .milestone-dot {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #2d2d44;
+            border: 3px solid #444;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: #888;
+            transition: all 0.3s ease;
+            position: relative;
+            z-index: 2;
+        }
+
+        .milestone.achieved .milestone-dot {
+            background: linear-gradient(135deg, #8a2be2, #da70d6);
+            border-color: #ffd700;
+            color: #fff;
+            box-shadow: 0 0 20px rgba(138, 43, 226, 0.6);
+            animation: glow 2s ease-in-out infinite;
+        }
+
+        .milestone.current .milestone-dot {
+            background: linear-gradient(135deg, #ff9800, #ffc107);
+            border-color: #fff;
+            color: #000;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 10px rgba(138, 43, 226, 0.4); }
+            50% { box-shadow: 0 0 25px rgba(138, 43, 226, 0.8); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.15); }
+        }
+
+        .milestone-label {
+            margin-top: 10px;
+            font-size: 0.75em;
+            color: rgba(255, 255, 255, 0.6);
+            text-align: center;
+            max-width: 70px;
+        }
+
+        .milestone.achieved .milestone-label {
+            color: #ffd700;
+            font-weight: 600;
+        }
+
+        .milestone.current .milestone-label {
+            color: #fff;
+            font-weight: 600;
+        }
+
+        .rewards-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .reward-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .reward-card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(138, 43, 226, 0.5);
+            box-shadow: 0 10px 30px rgba(138, 43, 226, 0.2);
+        }
+
+        .reward-card.locked {
+            opacity: 0.6;
+        }
+
+        .reward-card.unlocked {
+            border-color: #ffd700;
+            background: linear-gradient(135deg, rgba(138, 43, 226, 0.2), rgba(255, 215, 0, 0.1));
+        }
+
+        .reward-card.unlocked::before {
+            content: '✓ UNLOCKED';
+            position: absolute;
+            top: 10px;
+            right: -30px;
+            background: linear-gradient(90deg, #4caf50, #8bc34a);
+            color: #fff;
+            font-size: 0.65em;
+            font-weight: 700;
+            padding: 4px 35px;
+            transform: rotate(45deg);
+        }
+
+        .reward-icon {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .reward-title {
+            color: #fff;
+            font-weight: 600;
+            font-size: 1em;
+            margin-bottom: 5px;
+        }
+
+        .reward-requirement {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.85em;
+        }
+
+        .reward-card.unlocked .reward-requirement {
+            color: #ffd700;
+        }
+
+        .rewards-stats {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin-top: 25px;
+            padding-top: 25px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+            z-index: 1;
+        }
+
+        .reward-stat {
+            text-align: center;
+        }
+
+        .reward-stat-value {
+            font-size: 2em;
+            font-weight: 700;
+            color: #fff;
+            line-height: 1;
+        }
+
+        .reward-stat-value.success {
+            color: #4caf50;
+        }
+
+        .reward-stat-value.pending {
+            color: #ff9800;
+        }
+
+        .reward-stat-label {
+            font-size: 0.8em;
+            color: rgba(255, 255, 255, 0.6);
+            margin-top: 5px;
+        }
+
+        .cash-option-banner {
+            background: linear-gradient(90deg, rgba(76, 175, 80, 0.2), rgba(139, 195, 74, 0.2));
+            border: 1px solid rgba(76, 175, 80, 0.4);
+            border-radius: 8px;
+            padding: 12px 20px;
+            margin-top: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .cash-option-banner span {
+            color: #8bc34a;
+            font-weight: 500;
+        }
+
+        .cash-earned {
+            background: linear-gradient(90deg, #4caf50, #8bc34a);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 700;
+            font-size: 1.2em;
+        }
+
+        /* Mobile responsive for rewards */
+        @media (max-width: 768px) {
+            .rewards-journey {
+                padding: 20px 15px;
+            }
+
+            .rewards-title {
+                font-size: 1.4em;
+            }
+
+            .rewards-cards {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+            }
+
+            .reward-card {
+                padding: 15px 10px;
+            }
+
+            .reward-icon {
+                font-size: 2em;
+            }
+
+            .reward-title {
+                font-size: 0.85em;
+            }
+
+            .reward-requirement {
+                font-size: 0.75em;
+            }
+
+            .rewards-stats {
+                gap: 25px;
+            }
+
+            .reward-stat-value {
+                font-size: 1.5em;
+            }
+
+            .milestone-label {
+                font-size: 0.65em;
+                max-width: 50px;
+            }
+
+            .milestone-dot {
+                width: 20px;
+                height: 20px;
+                font-size: 10px;
+            }
+
+            .cash-option-banner {
+                flex-direction: column;
+                text-align: center;
+                gap: 5px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .rewards-cards {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .rewards-stats {
+                flex-wrap: wrap;
+                gap: 20px;
+            }
+
+            .reward-stat {
+                flex: 1 1 40%;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1137,6 +1502,91 @@
                     </div>
 
                     <button class="export-btn" onclick="exportData()">Export My Data</button>
+                </div>
+            </div>
+
+            <!-- Referral Rewards Journey Section -->
+            <div id="rewardsJourneyPanel" style="display: none;">
+                <div class="rewards-journey">
+                    <div class="rewards-header">
+                        <h2 class="rewards-title">
+                            <span>🎁</span>
+                            Referral Rewards
+                            <span>🏆</span>
+                        </h2>
+                        <p class="rewards-subtitle">Refer friends & teammates to unlock awesome rewards!</p>
+                    </div>
+
+                    <!-- Progress Bar with Milestones -->
+                    <div class="rewards-progress-container">
+                        <div class="rewards-progress-track">
+                            <div class="rewards-progress-fill" id="rewardsProgressFill" style="width: 0%;"></div>
+                        </div>
+                        <div class="rewards-milestones">
+                            <div class="milestone" id="milestone0">
+                                <div class="milestone-dot">0</div>
+                                <span class="milestone-label">Start</span>
+                            </div>
+                            <div class="milestone" id="milestone2">
+                                <div class="milestone-dot">2</div>
+                                <span class="milestone-label">Shirt</span>
+                            </div>
+                            <div class="milestone" id="milestone3">
+                                <div class="milestone-dot">3</div>
+                                <span class="milestone-label">Any Item</span>
+                            </div>
+                            <div class="milestone" id="milestone5">
+                                <div class="milestone-dot">5</div>
+                                <span class="milestone-label">Jersey!</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Reward Cards -->
+                    <div class="rewards-cards">
+                        <div class="reward-card locked" id="rewardCard2">
+                            <div class="reward-icon">👕</div>
+                            <div class="reward-title">Free Shirt</div>
+                            <div class="reward-requirement">2 Successful Referrals</div>
+                        </div>
+                        <div class="reward-card locked" id="rewardCard3">
+                            <div class="reward-icon">🎽</div>
+                            <div class="reward-title">Any Item*</div>
+                            <div class="reward-requirement">3 Successful Referrals</div>
+                        </div>
+                        <div class="reward-card locked" id="rewardCard5">
+                            <div class="reward-icon">🏀</div>
+                            <div class="reward-title">Jersey or Hoodie</div>
+                            <div class="reward-requirement">5 Successful Referrals</div>
+                        </div>
+                    </div>
+
+                    <p style="color: rgba(255,255,255,0.4); font-size: 0.75em; text-align: center; margin-top: 10px; position: relative; z-index: 1;">
+                        *Excludes jerseys and hoodies
+                    </p>
+
+                    <!-- Cash Option Banner -->
+                    <div class="cash-option-banner">
+                        <span>💵</span>
+                        <span>OR choose <strong>$5 cash</strong> per successful referral!</span>
+                        <span id="cashEarnedDisplay" class="cash-earned" style="display: none;"></span>
+                    </div>
+
+                    <!-- Stats Summary -->
+                    <div class="rewards-stats">
+                        <div class="reward-stat">
+                            <div class="reward-stat-value" id="totalReferralsCount">0</div>
+                            <div class="reward-stat-label">Total Referrals</div>
+                        </div>
+                        <div class="reward-stat">
+                            <div class="reward-stat-value success" id="successfulReferralsCount">0</div>
+                            <div class="reward-stat-label">Successful</div>
+                        </div>
+                        <div class="reward-stat">
+                            <div class="reward-stat-value pending" id="pendingReferralsCount">0</div>
+                            <div class="reward-stat-label">Pending</div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -4958,6 +5408,94 @@
             icon.classList.toggle('open');
         }
 
+        // ========== GAMIFIED REFERRAL REWARDS FUNCTIONS ==========
+
+        // Update the rewards journey UI based on referral data
+        function updateRewardsJourneyUI(referrals) {
+            const totalReferrals = referrals.length;
+            const successfulReferrals = referrals.filter(ref => ref.status === 'success').length;
+            const pendingReferrals = totalReferrals - successfulReferrals;
+
+            // Update stats display
+            document.getElementById('totalReferralsCount').textContent = totalReferrals;
+            document.getElementById('successfulReferralsCount').textContent = successfulReferrals;
+            document.getElementById('pendingReferralsCount').textContent = pendingReferrals;
+
+            // Calculate progress percentage (max at 5 successful referrals = 100%)
+            const maxReferrals = 5;
+            const progressPercent = Math.min((successfulReferrals / maxReferrals) * 100, 100);
+
+            // Animate progress bar after a short delay
+            setTimeout(() => {
+                document.getElementById('rewardsProgressFill').style.width = progressPercent + '%';
+            }, 300);
+
+            // Update milestones
+            updateMilestone('milestone0', successfulReferrals >= 0, successfulReferrals === 0);
+            updateMilestone('milestone2', successfulReferrals >= 2, successfulReferrals >= 1 && successfulReferrals < 2);
+            updateMilestone('milestone3', successfulReferrals >= 3, successfulReferrals >= 2 && successfulReferrals < 3);
+            updateMilestone('milestone5', successfulReferrals >= 5, successfulReferrals >= 3 && successfulReferrals < 5);
+
+            // Update reward cards
+            updateRewardCard('rewardCard2', successfulReferrals >= 2);
+            updateRewardCard('rewardCard3', successfulReferrals >= 3);
+            updateRewardCard('rewardCard5', successfulReferrals >= 5);
+
+            // Update cash earned display
+            const cashEarnedDisplay = document.getElementById('cashEarnedDisplay');
+            if (successfulReferrals > 0) {
+                const cashEarned = successfulReferrals * 5;
+                cashEarnedDisplay.textContent = `(You've earned $${cashEarned} in cash rewards!)`;
+                cashEarnedDisplay.style.display = 'inline';
+            } else {
+                cashEarnedDisplay.style.display = 'none';
+            }
+        }
+
+        // Update milestone appearance
+        function updateMilestone(milestoneId, isAchieved, isCurrent) {
+            const milestone = document.getElementById(milestoneId);
+            if (!milestone) return;
+
+            milestone.classList.remove('achieved', 'current');
+
+            if (isAchieved) {
+                milestone.classList.add('achieved');
+            } else if (isCurrent) {
+                milestone.classList.add('current');
+            }
+        }
+
+        // Update reward card appearance
+        function updateRewardCard(cardId, isUnlocked) {
+            const card = document.getElementById(cardId);
+            if (!card) return;
+
+            card.classList.remove('locked', 'unlocked');
+
+            if (isUnlocked) {
+                card.classList.add('unlocked');
+            } else {
+                card.classList.add('locked');
+            }
+        }
+
+        // Show the rewards journey panel
+        function showRewardsJourneyPanel() {
+            const rewardsPanel = document.getElementById('rewardsJourneyPanel');
+            if (rewardsPanel) {
+                rewardsPanel.style.display = 'block';
+            }
+        }
+
+        // Hide the rewards journey panel
+        function hideRewardsJourneyPanel() {
+            const rewardsPanel = document.getElementById('rewardsJourneyPanel');
+            if (rewardsPanel) {
+                rewardsPanel.style.display = 'none';
+            }
+        }
+
         // Generate referral link
         function generateReferralLink() {
             const name = document.getElementById('referralName').value.trim();
@@ -5060,6 +5598,10 @@
                 // Update count
                 document.getElementById('referralsCount').textContent = referrals.length;
 
+                // Update gamified rewards journey UI
+                showRewardsJourneyPanel();
+                updateRewardsJourneyUI(referrals);
+
                 // Display referrals
                 const tbody = document.getElementById('referralsTableBody');
                 if (referrals.length === 0) {
@@ -5103,6 +5645,10 @@
 
                 // Update count
                 document.getElementById('referralsCount').textContent = referrals.length;
+
+                // Update gamified rewards journey UI
+                showRewardsJourneyPanel();
+                updateRewardsJourneyUI(referrals);
 
                 // Display referrals
                 const tbody = document.getElementById('referralsTableBody');
