@@ -11,6 +11,9 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 
+    <!-- EmailJS SDK for sending redemption notifications -->
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+
     <style>
         * {
             margin: 0;
@@ -1164,6 +1167,50 @@
             font-weight: 500;
         }
 
+        .reward-card.redeemed {
+            opacity: 0.7;
+            border-color: #9e9e9e;
+            background: #f5f5f5;
+        }
+
+        .reward-card.redeemed::before {
+            content: 'REDEEMED';
+            background: #9e9e9e;
+        }
+
+        .redeem-btn {
+            margin-top: 12px;
+            padding: 8px 20px;
+            background: linear-gradient(135deg, #8a2be2, #9c27b0);
+            color: #fff;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85em;
+            transition: all 0.3s ease;
+            display: none;
+        }
+
+        .reward-card.unlocked .redeem-btn {
+            display: inline-block;
+        }
+
+        .reward-card.redeemed .redeem-btn {
+            display: none;
+        }
+
+        .redeem-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 3px 10px rgba(138, 43, 226, 0.3);
+        }
+
+        .redeem-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
         .rewards-stats {
             display: flex;
             justify-content: center;
@@ -1564,16 +1611,19 @@
                             <div class="reward-title">Shirt</div>
                             <div class="reward-requirement">Redeem for a free shirt</div>
                             <div class="gem-cost"><span class="gem-icon">&#9670;</span> 2 Gems</div>
+                            <button class="redeem-btn" onclick="redeemReward('shirt', 2)">Redeem</button>
                         </div>
                         <div class="reward-card locked" id="rewardCard3">
                             <div class="reward-title">Any Item</div>
                             <div class="reward-requirement">Excluding hoodie or jersey</div>
                             <div class="gem-cost"><span class="gem-icon">&#9670;</span> 3 Gems</div>
+                            <button class="redeem-btn" onclick="redeemReward('any_item', 3)">Redeem</button>
                         </div>
                         <div class="reward-card locked" id="rewardCard5">
                             <div class="reward-title">Hoodie or Jersey</div>
                             <div class="reward-requirement">Your choice of either</div>
                             <div class="gem-cost"><span class="gem-icon">&#9670;</span> 5 Gems</div>
+                            <button class="redeem-btn" onclick="redeemReward('hoodie_or_jersey', 5)">Redeem</button>
                         </div>
                     </div>
 
@@ -5399,49 +5449,248 @@
 
         // ========== GAMIFIED REFERRAL REWARDS FUNCTIONS ==========
 
+        // EmailJS Configuration - Update these with your EmailJS credentials
+        const EMAILJS_SERVICE_ID = 'service_iconroyalty';
+        const EMAILJS_TEMPLATE_ID = 'template_redemption';
+        const EMAILJS_PUBLIC_KEY = 'YOUR_EMAILJS_PUBLIC_KEY'; // Get from EmailJS dashboard
+
+        // Initialize EmailJS
+        (function() {
+            if (typeof emailjs !== 'undefined') {
+                emailjs.init(EMAILJS_PUBLIC_KEY);
+            }
+        })();
+
+        // Store current rewards data for the logged-in user
+        let currentUserRewards = {
+            gemsEarned: 0,
+            gemsSpent: 0,
+            redemptions: []
+        };
+
+        // Load rewards data from Firebase
+        async function loadUserRewards(userName) {
+            try {
+                const sanitizedName = sanitizeFirebaseKey(userName);
+                const rewardsRef = firebase.database().ref('athletes/' + sanitizedName + '/rewards');
+                const snapshot = await rewardsRef.once('value');
+
+                if (snapshot.exists()) {
+                    currentUserRewards = snapshot.val();
+                    // Ensure redemptions is an array
+                    if (!Array.isArray(currentUserRewards.redemptions)) {
+                        currentUserRewards.redemptions = currentUserRewards.redemptions ? Object.values(currentUserRewards.redemptions) : [];
+                    }
+                } else {
+                    currentUserRewards = { gemsEarned: 0, gemsSpent: 0, redemptions: [] };
+                }
+
+                return currentUserRewards;
+            } catch (error) {
+                console.error('Error loading rewards:', error);
+                return { gemsEarned: 0, gemsSpent: 0, redemptions: [] };
+            }
+        }
+
+        // Save rewards data to Firebase
+        async function saveUserRewards(userName, rewardsData) {
+            try {
+                const sanitizedName = sanitizeFirebaseKey(userName);
+                await firebase.database().ref('athletes/' + sanitizedName + '/rewards').set(rewardsData);
+                console.log('Rewards saved to Firebase');
+                return true;
+            } catch (error) {
+                console.error('Error saving rewards:', error);
+                return false;
+            }
+        }
+
         // Update the rewards journey UI based on referral data
-        function updateRewardsJourneyUI(referrals) {
+        async function updateRewardsJourneyUI(referrals) {
             const totalReferrals = referrals.length;
             const successfulReferrals = referrals.filter(ref => ref.status === 'success').length;
             const pendingReferrals = totalReferrals - successfulReferrals;
 
-            // Update Clutch Gems count (1 gem per successful referral)
-            const clutchGems = successfulReferrals;
-            document.getElementById('clutchGemsCount').textContent = clutchGems;
+            // Load rewards data (for gems spent/redemptions)
+            const userName = window.currentAccessCode || window.currentOrgName;
+            if (userName) {
+                await loadUserRewards(userName);
+            }
+
+            // Calculate available gems (earned - spent)
+            const gemsEarned = successfulReferrals;
+            const gemsSpent = currentUserRewards.gemsSpent || 0;
+            const availableGems = gemsEarned - gemsSpent;
+
+            // Update rewards data in memory
+            currentUserRewards.gemsEarned = gemsEarned;
+
+            // Update Clutch Gems count display (show available gems)
+            document.getElementById('clutchGemsCount').textContent = availableGems;
 
             // Update stats display
             document.getElementById('totalReferralsCount').textContent = totalReferrals;
             document.getElementById('successfulReferralsCount').textContent = successfulReferrals;
             document.getElementById('pendingReferralsCount').textContent = pendingReferrals;
 
-            // Calculate progress percentage (max at 5 gems = 100%)
+            // Calculate progress percentage based on total earned (max at 5 gems = 100%)
             const maxGems = 5;
-            const progressPercent = Math.min((clutchGems / maxGems) * 100, 100);
+            const progressPercent = Math.min((gemsEarned / maxGems) * 100, 100);
 
             // Animate progress bar after a short delay
             setTimeout(() => {
                 document.getElementById('rewardsProgressFill').style.width = progressPercent + '%';
             }, 300);
 
-            // Update milestones
-            updateMilestone('milestone0', clutchGems >= 0, clutchGems === 0);
-            updateMilestone('milestone2', clutchGems >= 2, clutchGems >= 1 && clutchGems < 2);
-            updateMilestone('milestone3', clutchGems >= 3, clutchGems >= 2 && clutchGems < 3);
-            updateMilestone('milestone5', clutchGems >= 5, clutchGems >= 3 && clutchGems < 5);
+            // Update milestones based on total earned
+            updateMilestone('milestone0', gemsEarned >= 0, gemsEarned === 0);
+            updateMilestone('milestone2', gemsEarned >= 2, gemsEarned >= 1 && gemsEarned < 2);
+            updateMilestone('milestone3', gemsEarned >= 3, gemsEarned >= 2 && gemsEarned < 3);
+            updateMilestone('milestone5', gemsEarned >= 5, gemsEarned >= 3 && gemsEarned < 5);
 
-            // Update reward cards
-            updateRewardCard('rewardCard2', clutchGems >= 2);
-            updateRewardCard('rewardCard3', clutchGems >= 3);
-            updateRewardCard('rewardCard5', clutchGems >= 5);
+            // Update reward cards based on available gems and redemption status
+            updateRewardCardWithRedemption('rewardCard2', 'shirt', 2, availableGems);
+            updateRewardCardWithRedemption('rewardCard3', 'any_item', 3, availableGems);
+            updateRewardCardWithRedemption('rewardCard5', 'hoodie_or_jersey', 5, availableGems);
 
-            // Update cash earned display
+            // Update cash earned display (based on available gems)
             const cashEarnedDisplay = document.getElementById('cashEarnedDisplay');
-            if (clutchGems > 0) {
-                const cashValue = clutchGems * 5;
+            if (availableGems > 0) {
+                const cashValue = availableGems * 5;
                 cashEarnedDisplay.textContent = `(Worth $${cashValue} in cash!)`;
                 cashEarnedDisplay.style.display = 'inline';
             } else {
                 cashEarnedDisplay.style.display = 'none';
+            }
+        }
+
+        // Check if a reward has been redeemed
+        function isRewardRedeemed(rewardType) {
+            if (!currentUserRewards.redemptions) return false;
+            return currentUserRewards.redemptions.some(r => r.rewardType === rewardType);
+        }
+
+        // Update reward card with redemption status
+        function updateRewardCardWithRedemption(cardId, rewardType, gemCost, availableGems) {
+            const card = document.getElementById(cardId);
+            if (!card) return;
+
+            card.classList.remove('locked', 'unlocked', 'redeemed');
+
+            if (isRewardRedeemed(rewardType)) {
+                card.classList.add('redeemed');
+            } else if (availableGems >= gemCost) {
+                card.classList.add('unlocked');
+            } else {
+                card.classList.add('locked');
+            }
+        }
+
+        // Redeem a reward
+        async function redeemReward(rewardType, gemCost) {
+            const userName = window.currentAccessCode || window.currentOrgName;
+            if (!userName) {
+                alert('Error: No user logged in');
+                return;
+            }
+
+            // Check if already redeemed
+            if (isRewardRedeemed(rewardType)) {
+                alert('You have already redeemed this reward!');
+                return;
+            }
+
+            // Check if enough gems
+            const availableGems = currentUserRewards.gemsEarned - (currentUserRewards.gemsSpent || 0);
+            if (availableGems < gemCost) {
+                alert(`Not enough gems! You need ${gemCost} gems but only have ${availableGems}.`);
+                return;
+            }
+
+            // Format reward name for display
+            const rewardNames = {
+                'shirt': 'Shirt',
+                'any_item': 'Any Item (excluding hoodie/jersey)',
+                'hoodie_or_jersey': 'Hoodie or Jersey'
+            };
+            const rewardName = rewardNames[rewardType] || rewardType;
+
+            // Confirm redemption
+            if (!confirm(`Are you sure you want to redeem "${rewardName}" for ${gemCost} gems?`)) {
+                return;
+            }
+
+            // Create redemption record
+            const redemption = {
+                rewardType: rewardType,
+                rewardName: rewardName,
+                gemCost: gemCost,
+                redeemedAt: new Date().toISOString(),
+                status: 'pending'
+            };
+
+            // Update rewards data
+            currentUserRewards.gemsSpent = (currentUserRewards.gemsSpent || 0) + gemCost;
+            if (!currentUserRewards.redemptions) {
+                currentUserRewards.redemptions = [];
+            }
+            currentUserRewards.redemptions.push(redemption);
+
+            // Save to Firebase
+            const saved = await saveUserRewards(userName, currentUserRewards);
+            if (!saved) {
+                alert('Error saving redemption. Please try again.');
+                // Revert changes
+                currentUserRewards.gemsSpent -= gemCost;
+                currentUserRewards.redemptions.pop();
+                return;
+            }
+
+            // Send email notification
+            await sendRedemptionEmail(userName, rewardName, gemCost);
+
+            // Update UI
+            const referralsRef = firebase.database().ref('athletes/' + sanitizeFirebaseKey(userName) + '/referrals');
+            const snapshot = await referralsRef.once('value');
+            const referrals = [];
+            snapshot.forEach(child => {
+                referrals.push(child.val());
+            });
+            await updateRewardsJourneyUI(referrals);
+
+            alert(`🎉 Congratulations! Your "${rewardName}" redemption request has been submitted. We'll be in touch soon!`);
+        }
+
+        // Send redemption notification email
+        async function sendRedemptionEmail(userName, rewardName, gemCost) {
+            try {
+                // Check if EmailJS is available and configured
+                if (typeof emailjs === 'undefined') {
+                    console.log('EmailJS not loaded, storing redemption for manual review');
+                    return;
+                }
+
+                if (EMAILJS_PUBLIC_KEY === 'YOUR_EMAILJS_PUBLIC_KEY') {
+                    console.log('EmailJS not configured - redemption stored in Firebase for manual review');
+                    console.log('To enable email notifications, set up EmailJS at https://www.emailjs.com/');
+                    return;
+                }
+
+                const templateParams = {
+                    to_email: 'connect@clutchicons.com',
+                    athlete_name: userName,
+                    reward_name: rewardName,
+                    gem_cost: gemCost,
+                    redemption_date: new Date().toLocaleString(),
+                    remaining_gems: currentUserRewards.gemsEarned - currentUserRewards.gemsSpent
+                };
+
+                await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, templateParams);
+                console.log('Redemption email sent successfully');
+            } catch (error) {
+                console.error('Error sending email:', error);
+                // Email failed but redemption is still saved in Firebase
+                console.log('Email failed but redemption is saved in Firebase');
             }
         }
 
@@ -5456,20 +5705,6 @@
                 milestone.classList.add('achieved');
             } else if (isCurrent) {
                 milestone.classList.add('current');
-            }
-        }
-
-        // Update reward card appearance
-        function updateRewardCard(cardId, isUnlocked) {
-            const card = document.getElementById(cardId);
-            if (!card) return;
-
-            card.classList.remove('locked', 'unlocked');
-
-            if (isUnlocked) {
-                card.classList.add('unlocked');
-            } else {
-                card.classList.add('locked');
             }
         }
 
