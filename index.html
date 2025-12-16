@@ -1218,6 +1218,60 @@
             font-size: 1.1em;
         }
 
+        /* Clutch Gems Styling */
+        .gem-icon {
+            color: #8a2be2;
+            font-size: 1.1em;
+            margin-right: 2px;
+        }
+
+        .gem-display {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%);
+            border: 2px solid #8a2be2;
+            border-radius: 8px;
+            padding: 15px 25px;
+            margin-bottom: 20px;
+        }
+
+        .gem-display-icon {
+            color: #8a2be2;
+            font-size: 1.8em;
+        }
+
+        .gem-display-text {
+            font-size: 1.1em;
+            color: #0b1215;
+        }
+
+        .gem-display-count {
+            font-size: 1.8em;
+            font-weight: 700;
+            color: #8a2be2;
+        }
+
+        .gem-cost {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            color: #8a2be2;
+            font-weight: 600;
+        }
+
+        .reward-card .gem-cost {
+            margin-top: 8px;
+            font-size: 0.9em;
+        }
+
+        .milestone-gem {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+        }
+
         /* Mobile responsive for rewards */
         @media (max-width: 768px) {
             .rewards-journey {
@@ -1469,13 +1523,20 @@
             <div id="rewardsJourneyPanel" style="display: none;">
                 <div class="rewards-journey">
                     <div class="rewards-header">
-                        <h2 class="rewards-title">Referral Rewards</h2>
-                        <p class="rewards-subtitle">Refer friends and teammates to earn rewards!</p>
+                        <h2 class="rewards-title">Clutch Gems</h2>
+                        <p class="rewards-subtitle">Earn gems for each successful referral, then spend them on rewards!</p>
+                    </div>
+
+                    <!-- Gem Balance Display -->
+                    <div class="gem-display">
+                        <span class="gem-display-icon">&#9670;</span>
+                        <span class="gem-display-text">Your Clutch Gems:</span>
+                        <span class="gem-display-count" id="clutchGemsCount">0</span>
                     </div>
 
                     <!-- Important Note about Redemption -->
                     <div class="rewards-note">
-                        <strong>How it works:</strong> Choose ONE reward option below. Once you redeem a reward, your progress resets to 0. You cannot stack rewards (e.g., get a shirt at 2, then another item at 3).
+                        <strong>How it works:</strong> Each successful referral earns you 1 Clutch Gem. Spend your gems on ONE reward below. Once you redeem, your gem balance resets to 0.
                     </div>
 
                     <!-- Progress Bar with Milestones -->
@@ -1498,7 +1559,7 @@
                             </div>
                             <div class="milestone" id="milestone5">
                                 <div class="milestone-dot">5</div>
-                                <span class="milestone-label">Jersey</span>
+                                <span class="milestone-label">Hoodie</span>
                             </div>
                         </div>
                     </div>
@@ -1506,26 +1567,25 @@
                     <!-- Reward Cards -->
                     <div class="rewards-cards">
                         <div class="reward-card locked" id="rewardCard2">
-                            <div class="reward-title">Free Shirt</div>
-                            <div class="reward-requirement">2 Successful Referrals</div>
+                            <div class="reward-title">Shirt</div>
+                            <div class="reward-requirement">Redeem for a free shirt</div>
+                            <div class="gem-cost"><span class="gem-icon">&#9670;</span> 2 Gems</div>
                         </div>
                         <div class="reward-card locked" id="rewardCard3">
-                            <div class="reward-title">Any Item*</div>
-                            <div class="reward-requirement">3 Successful Referrals</div>
+                            <div class="reward-title">Any Item</div>
+                            <div class="reward-requirement">Excluding hoodie or jersey</div>
+                            <div class="gem-cost"><span class="gem-icon">&#9670;</span> 3 Gems</div>
                         </div>
                         <div class="reward-card locked" id="rewardCard5">
-                            <div class="reward-title">Jersey or Hoodie</div>
-                            <div class="reward-requirement">5 Successful Referrals</div>
+                            <div class="reward-title">Hoodie or Jersey</div>
+                            <div class="reward-requirement">Your choice of either</div>
+                            <div class="gem-cost"><span class="gem-icon">&#9670;</span> 5 Gems</div>
                         </div>
                     </div>
 
-                    <p style="color: #999; font-size: 0.75em; text-align: center; margin-top: 10px;">
-                        *Excludes jerseys and hoodies
-                    </p>
-
                     <!-- Cash Option Banner -->
                     <div class="cash-option-banner">
-                        <span>OR choose <strong>$5 cash</strong> per successful referral instead!</span>
+                        <span>OR choose <strong>$5 cash</strong> per gem instead of item rewards!</span>
                         <span id="cashEarnedDisplay" class="cash-earned" style="display: none;"></span>
                     </div>
 
@@ -5373,14 +5433,18 @@
             const successfulReferrals = referrals.filter(ref => ref.status === 'success').length;
             const pendingReferrals = totalReferrals - successfulReferrals;
 
+            // Update Clutch Gems count (1 gem per successful referral)
+            const clutchGems = successfulReferrals;
+            document.getElementById('clutchGemsCount').textContent = clutchGems;
+
             // Update stats display
             document.getElementById('totalReferralsCount').textContent = totalReferrals;
             document.getElementById('successfulReferralsCount').textContent = successfulReferrals;
             document.getElementById('pendingReferralsCount').textContent = pendingReferrals;
 
-            // Calculate progress percentage (max at 5 successful referrals = 100%)
-            const maxReferrals = 5;
-            const progressPercent = Math.min((successfulReferrals / maxReferrals) * 100, 100);
+            // Calculate progress percentage (max at 5 gems = 100%)
+            const maxGems = 5;
+            const progressPercent = Math.min((clutchGems / maxGems) * 100, 100);
 
             // Animate progress bar after a short delay
             setTimeout(() => {
@@ -5388,21 +5452,21 @@
             }, 300);
 
             // Update milestones
-            updateMilestone('milestone0', successfulReferrals >= 0, successfulReferrals === 0);
-            updateMilestone('milestone2', successfulReferrals >= 2, successfulReferrals >= 1 && successfulReferrals < 2);
-            updateMilestone('milestone3', successfulReferrals >= 3, successfulReferrals >= 2 && successfulReferrals < 3);
-            updateMilestone('milestone5', successfulReferrals >= 5, successfulReferrals >= 3 && successfulReferrals < 5);
+            updateMilestone('milestone0', clutchGems >= 0, clutchGems === 0);
+            updateMilestone('milestone2', clutchGems >= 2, clutchGems >= 1 && clutchGems < 2);
+            updateMilestone('milestone3', clutchGems >= 3, clutchGems >= 2 && clutchGems < 3);
+            updateMilestone('milestone5', clutchGems >= 5, clutchGems >= 3 && clutchGems < 5);
 
             // Update reward cards
-            updateRewardCard('rewardCard2', successfulReferrals >= 2);
-            updateRewardCard('rewardCard3', successfulReferrals >= 3);
-            updateRewardCard('rewardCard5', successfulReferrals >= 5);
+            updateRewardCard('rewardCard2', clutchGems >= 2);
+            updateRewardCard('rewardCard3', clutchGems >= 3);
+            updateRewardCard('rewardCard5', clutchGems >= 5);
 
             // Update cash earned display
             const cashEarnedDisplay = document.getElementById('cashEarnedDisplay');
-            if (successfulReferrals > 0) {
-                const cashEarned = successfulReferrals * 5;
-                cashEarnedDisplay.textContent = `(You've earned $${cashEarned} in cash rewards!)`;
+            if (clutchGems > 0) {
+                const cashValue = clutchGems * 5;
+                cashEarnedDisplay.textContent = `(Worth $${cashValue} in cash!)`;
                 cashEarnedDisplay.style.display = 'inline';
             } else {
                 cashEarnedDisplay.style.display = 'none';
