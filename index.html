@@ -3263,14 +3263,23 @@
 
             console.log('Sales data processed for', Object.keys(athleteData).length, 'athletes with sales');
         }
-        
+
+        let searchSetupComplete = false;
+
         function setupSearch() {
             const searchInput = document.getElementById('athleteSearch');
             const suggestionsDiv = document.getElementById('suggestions');
-            
-            searchInput.addEventListener('input', function() {
-                const query = this.value.toLowerCase().trim();
-                
+
+            // Prevent adding duplicate event listeners
+            if (searchSetupComplete) {
+                return;
+            }
+            searchSetupComplete = true;
+
+            // Function to perform search
+            function performSearch() {
+                const query = searchInput.value.toLowerCase().trim();
+
                 if (query.length < 2) {
                     suggestionsDiv.classList.remove('active');
                     suggestionsDiv.innerHTML = '';
@@ -3278,13 +3287,13 @@
                     updateLoginButton();
                     return;
                 }
-                
-                const matches = athletesList.filter(athlete => 
+
+                const matches = athletesList.filter(athlete =>
                     athlete.toLowerCase().includes(query)
                 );
-                
+
                 if (matches.length > 0) {
-                    suggestionsDiv.innerHTML = matches.map((athlete, index) => 
+                    suggestionsDiv.innerHTML = matches.map((athlete, index) =>
                         `<div class="suggestion" data-index="${index}" data-athlete="${athlete}">${athlete}</div>`
                     ).join('');
                     suggestionsDiv.classList.add('active');
@@ -3292,9 +3301,18 @@
                     suggestionsDiv.innerHTML = '<div class="no-results">No icons found</div>';
                     suggestionsDiv.classList.add('active');
                 }
-                
+
                 selectedSuggestionIndex = -1;
                 updateLoginButton();
+            }
+
+            searchInput.addEventListener('input', performSearch);
+
+            // Show suggestions on focus if there's already text
+            searchInput.addEventListener('focus', function() {
+                if (this.value.trim().length >= 2) {
+                    performSearch();
+                }
             });
             
             searchInput.addEventListener('keydown', function(e) {
@@ -3951,6 +3969,14 @@
             document.getElementById('loginBtn').disabled = true;
             document.getElementById('orgSelect').value = '';
             document.getElementById('orgPassword').value = '';
+
+            // Clear suggestions
+            const suggestionsDiv = document.getElementById('suggestions');
+            if (suggestionsDiv) {
+                suggestionsDiv.innerHTML = '';
+                suggestionsDiv.classList.remove('active');
+            }
+            selectedSuggestionIndex = -1;
 
             // Switch back to athlete login
             switchLoginType('athlete');
