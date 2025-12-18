@@ -1827,6 +1827,85 @@
                         </div>
                     </div>
 
+                        <!-- Gem Management Section -->
+                        <div style="margin-top: 40px; border-top: 3px solid #e0e0e0; padding-top: 30px;">
+                            <h3 style="margin-bottom: 20px;">💎 Gem Management</h3>
+
+                            <!-- Gem User Search -->
+                            <div class="form-group" style="margin-bottom: 20px;">
+                                <label for="gemUserSearch">Search Athlete</label>
+                                <div class="search-container">
+                                    <input type="text"
+                                           id="gemUserSearch"
+                                           placeholder="Type to search athletes..."
+                                           oninput="filterGemUsers()"
+                                           style="width: 100%;">
+                                    <div id="gemUserList" class="suggestions"></div>
+                                </div>
+                            </div>
+
+                            <!-- Selected User Gem Info -->
+                            <div id="selectedGemUserInfo" style="display: none; padding: 20px; background: linear-gradient(135deg, #f3e7ff, #e8f5e9); border-radius: 8px; margin-bottom: 20px; border: 2px solid #8a2be2;">
+                                <h4 style="margin-bottom: 15px;">Athlete: <span id="gemUserName" style="color: #8a2be2;"></span></h4>
+
+                                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px;">
+                                    <div style="background: white; padding: 15px; border-radius: 8px; text-align: center;">
+                                        <div style="font-size: 2em; color: #4caf50; font-weight: bold;" id="gemInfoEarned">0</div>
+                                        <div style="color: #666; font-size: 0.9em;">Gems Earned</div>
+                                    </div>
+                                    <div style="background: white; padding: 15px; border-radius: 8px; text-align: center;">
+                                        <div style="font-size: 2em; color: #f44336; font-weight: bold;" id="gemInfoSpent">0</div>
+                                        <div style="color: #666; font-size: 0.9em;">Gems Spent</div>
+                                    </div>
+                                    <div style="background: white; padding: 15px; border-radius: 8px; text-align: center;">
+                                        <div style="font-size: 2em; color: #8a2be2; font-weight: bold;" id="gemInfoAvailable">0</div>
+                                        <div style="color: #666; font-size: 0.9em;">Available</div>
+                                    </div>
+                                </div>
+
+                                <!-- Edit Gems -->
+                                <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                                    <h5 style="margin: 0 0 10px 0;">Adjust Gems</h5>
+                                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                                        <input type="number" id="gemAdjustAmount" placeholder="Amount" style="width: 100px; padding: 8px; border: 2px solid #e0e0e0; border-radius: 4px;">
+                                        <button class="btn" onclick="adjustGems('add')" style="background: #4caf50;">+ Add Gems</button>
+                                        <button class="btn" onclick="adjustGems('subtract')" style="background: #f44336;">- Remove Gems</button>
+                                        <button class="btn" onclick="setGemsDirectly()" style="background: #ff9800;">Set Exact</button>
+                                    </div>
+                                </div>
+
+                                <!-- Redemption History -->
+                                <div style="background: white; padding: 15px; border-radius: 8px;">
+                                    <h5 style="margin: 0 0 10px 0;">Redemption History</h5>
+                                    <div id="gemRedemptionHistory" style="max-height: 150px; overflow-y: auto;">
+                                        <p style="color: #999; text-align: center;">No redemptions yet</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- All Users Gems Table -->
+                            <div style="margin-top: 20px;">
+                                <h4 style="margin-bottom: 15px;">All Athletes Gem Balances</h4>
+                                <button class="btn" onclick="loadAllUserGems()" style="margin-bottom: 15px; background: #8a2be2;">Refresh Gem Data</button>
+                                <div id="allGemsTable" style="max-height: 400px; overflow-y: auto;">
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>Athlete Name</th>
+                                                <th>Earned</th>
+                                                <th>Spent</th>
+                                                <th>Available</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="allGemsTableBody">
+                                            <tr><td colspan="5" style="text-align: center; color: #999;">Click "Refresh Gem Data" to load</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Organization Management Section -->
                         <div style="margin-top: 40px; border-top: 3px solid #e0e0e0; padding-top: 30px;">
                             <h3 style="margin-bottom: 20px;">Organization Management</h3>
@@ -4154,6 +4233,280 @@
             }
         }
 
+        // ========== GEM MANAGEMENT FUNCTIONS ==========
+
+        let selectedGemUser = null;
+        let selectedGemUserData = null;
+
+        // Filter gem user search
+        function filterGemUsers() {
+            const input = document.getElementById('gemUserSearch').value.toLowerCase();
+            const suggestionsList = document.getElementById('gemUserList');
+
+            if (!input) {
+                suggestionsList.classList.remove('active');
+                return;
+            }
+
+            const filtered = athletesList.filter(athlete =>
+                athlete !== 'Admin (View All)' && athlete.toLowerCase().includes(input)
+            ).slice(0, 10);
+
+            if (filtered.length === 0) {
+                suggestionsList.classList.remove('active');
+                return;
+            }
+
+            suggestionsList.innerHTML = filtered.map(athlete =>
+                `<div class="suggestion" onclick="selectGemUser('${athlete.replace(/'/g, "\\'")}')">${athlete}</div>`
+            ).join('');
+
+            suggestionsList.classList.add('active');
+        }
+
+        // Select a user for gem management
+        async function selectGemUser(userName) {
+            selectedGemUser = userName;
+            document.getElementById('gemUserSearch').value = userName;
+            document.getElementById('gemUserList').classList.remove('active');
+
+            // Show user info section
+            document.getElementById('selectedGemUserInfo').style.display = 'block';
+            document.getElementById('gemUserName').textContent = userName;
+
+            // Load gem data
+            await loadGemUserData(userName);
+        }
+
+        // Load gem data for a specific user
+        async function loadGemUserData(userName) {
+            try {
+                const sanitizedName = sanitizeFirebaseKey(userName);
+
+                // Load rewards data
+                const rewardsRef = firebase.database().ref('athletes/' + sanitizedName + '/rewards');
+                const rewardsSnapshot = await rewardsRef.once('value');
+
+                // Load referrals to calculate earned gems
+                const referralsRef = firebase.database().ref('athletes/' + sanitizedName + '/referrals');
+                const referralsSnapshot = await referralsRef.once('value');
+
+                let gemsEarned = 0;
+                if (referralsSnapshot.exists()) {
+                    referralsSnapshot.forEach(child => {
+                        if (child.val().status === 'success') {
+                            gemsEarned++;
+                        }
+                    });
+                }
+
+                let rewardsData = { gemsEarned: gemsEarned, gemsSpent: 0, redemptions: [] };
+                if (rewardsSnapshot.exists()) {
+                    rewardsData = rewardsSnapshot.val();
+                    rewardsData.gemsEarned = gemsEarned; // Always recalculate from referrals
+                }
+
+                // Check for admin adjustments
+                const adjustmentsRef = firebase.database().ref('athletes/' + sanitizedName + '/gemAdjustments');
+                const adjustmentsSnapshot = await adjustmentsRef.once('value');
+                let adminAdjustment = 0;
+                if (adjustmentsSnapshot.exists()) {
+                    adminAdjustment = adjustmentsSnapshot.val() || 0;
+                }
+
+                selectedGemUserData = {
+                    ...rewardsData,
+                    adminAdjustment: adminAdjustment,
+                    totalEarned: gemsEarned + adminAdjustment
+                };
+
+                // Update UI
+                document.getElementById('gemInfoEarned').textContent = selectedGemUserData.totalEarned;
+                document.getElementById('gemInfoSpent').textContent = selectedGemUserData.gemsSpent || 0;
+                document.getElementById('gemInfoAvailable').textContent =
+                    selectedGemUserData.totalEarned - (selectedGemUserData.gemsSpent || 0);
+
+                // Display redemption history
+                displayRedemptionHistory(selectedGemUserData.redemptions);
+
+            } catch (error) {
+                console.error('Error loading gem data:', error);
+                alert('Error loading gem data: ' + error.message);
+            }
+        }
+
+        // Display redemption history
+        function displayRedemptionHistory(redemptions) {
+            const container = document.getElementById('gemRedemptionHistory');
+
+            if (!redemptions || redemptions.length === 0) {
+                container.innerHTML = '<p style="color: #999; text-align: center;">No redemptions yet</p>';
+                return;
+            }
+
+            // Convert to array if it's an object
+            const redemptionArray = Array.isArray(redemptions) ? redemptions : Object.values(redemptions);
+
+            container.innerHTML = redemptionArray.map(r => `
+                <div style="padding: 8px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between;">
+                    <span><strong>${r.rewardName || r.rewardType}</strong> (${r.gemCost} gems)</span>
+                    <span style="color: #666; font-size: 0.9em;">${new Date(r.redeemedAt).toLocaleDateString()}</span>
+                </div>
+            `).join('');
+        }
+
+        // Adjust gems (add or subtract)
+        async function adjustGems(action) {
+            if (!selectedGemUser) {
+                alert('Please select a user first');
+                return;
+            }
+
+            const amountInput = document.getElementById('gemAdjustAmount');
+            const amount = parseInt(amountInput.value);
+
+            if (isNaN(amount) || amount <= 0) {
+                alert('Please enter a valid positive number');
+                return;
+            }
+
+            const adjustment = action === 'add' ? amount : -amount;
+            const newAdjustment = (selectedGemUserData.adminAdjustment || 0) + adjustment;
+
+            // Check if this would make available gems negative
+            const newTotal = selectedGemUserData.gemsEarned + newAdjustment;
+            const newAvailable = newTotal - (selectedGemUserData.gemsSpent || 0);
+
+            if (newAvailable < 0) {
+                alert(`Cannot remove that many gems. User only has ${selectedGemUserData.totalEarned - (selectedGemUserData.gemsSpent || 0)} available gems.`);
+                return;
+            }
+
+            const actionText = action === 'add' ? 'add' : 'remove';
+            if (!confirm(`Are you sure you want to ${actionText} ${amount} gems for ${selectedGemUser}?`)) {
+                return;
+            }
+
+            try {
+                const sanitizedName = sanitizeFirebaseKey(selectedGemUser);
+                await firebase.database().ref('athletes/' + sanitizedName + '/gemAdjustments').set(newAdjustment);
+
+                alert(`Successfully ${actionText}ed ${amount} gems for ${selectedGemUser}`);
+                amountInput.value = '';
+                await loadGemUserData(selectedGemUser);
+            } catch (error) {
+                console.error('Error adjusting gems:', error);
+                alert('Error adjusting gems: ' + error.message);
+            }
+        }
+
+        // Set gems to exact amount
+        async function setGemsDirectly() {
+            if (!selectedGemUser) {
+                alert('Please select a user first');
+                return;
+            }
+
+            const amountInput = document.getElementById('gemAdjustAmount');
+            const targetAmount = parseInt(amountInput.value);
+
+            if (isNaN(targetAmount) || targetAmount < 0) {
+                alert('Please enter a valid non-negative number');
+                return;
+            }
+
+            // Calculate what adjustment is needed to reach target available gems
+            const currentSpent = selectedGemUserData.gemsSpent || 0;
+            const referralEarned = selectedGemUserData.gemsEarned || 0;
+
+            // Target = referralEarned + adjustment - spent
+            // adjustment = target + spent - referralEarned
+            const newAdjustment = targetAmount + currentSpent - referralEarned;
+
+            if (!confirm(`Set available gems for ${selectedGemUser} to exactly ${targetAmount}?`)) {
+                return;
+            }
+
+            try {
+                const sanitizedName = sanitizeFirebaseKey(selectedGemUser);
+                await firebase.database().ref('athletes/' + sanitizedName + '/gemAdjustments').set(newAdjustment);
+
+                alert(`Successfully set available gems to ${targetAmount} for ${selectedGemUser}`);
+                amountInput.value = '';
+                await loadGemUserData(selectedGemUser);
+            } catch (error) {
+                console.error('Error setting gems:', error);
+                alert('Error setting gems: ' + error.message);
+            }
+        }
+
+        // Load all users' gem data for the table
+        async function loadAllUserGems() {
+            const tbody = document.getElementById('allGemsTableBody');
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">Loading...</td></tr>';
+
+            try {
+                const athletesSnapshot = await firebase.database().ref('athletes').once('value');
+                const athletes = athletesSnapshot.val() || {};
+
+                const rows = [];
+
+                for (const [key, data] of Object.entries(athletes)) {
+                    // Calculate gems earned from referrals
+                    let gemsEarned = 0;
+                    if (data.referrals) {
+                        const referrals = Array.isArray(data.referrals) ? data.referrals : Object.values(data.referrals);
+                        gemsEarned = referrals.filter(r => r.status === 'success').length;
+                    }
+
+                    // Get admin adjustments
+                    const adminAdjustment = data.gemAdjustments || 0;
+                    const totalEarned = gemsEarned + adminAdjustment;
+
+                    // Get spent gems
+                    const gemsSpent = data.rewards?.gemsSpent || 0;
+                    const available = totalEarned - gemsSpent;
+
+                    // Only show users with any gem activity
+                    if (totalEarned > 0 || gemsSpent > 0) {
+                        rows.push({
+                            name: key,
+                            earned: totalEarned,
+                            spent: gemsSpent,
+                            available: available
+                        });
+                    }
+                }
+
+                // Sort by available gems descending
+                rows.sort((a, b) => b.available - a.available);
+
+                if (rows.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #999;">No athletes with gem activity yet</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = rows.map(row => `
+                    <tr>
+                        <td>${row.name}</td>
+                        <td style="color: #4caf50; font-weight: bold;">${row.earned}</td>
+                        <td style="color: #f44336;">${row.spent}</td>
+                        <td style="color: #8a2be2; font-weight: bold;">${row.available}</td>
+                        <td>
+                            <button class="btn" onclick="selectGemUser('${row.name.replace(/'/g, "\\'")}'); document.getElementById('gemUserSearch').scrollIntoView();"
+                                    style="padding: 5px 10px; font-size: 0.9em; background: #8a2be2;">
+                                Manage
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+
+            } catch (error) {
+                console.error('Error loading gem data:', error);
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #f44336;">Error loading data</td></tr>';
+            }
+        }
+
         // Modal functions
         function closeAdminSetPasswordModal() {
             document.getElementById('adminSetPasswordModal').style.display = 'none';
@@ -5501,17 +5854,29 @@
 
             // Load rewards data (for gems spent/redemptions)
             const userName = window.currentAccessCode || window.currentOrgName;
+            let adminAdjustment = 0;
             if (userName) {
                 await loadUserRewards(userName);
+                // Load admin adjustments
+                try {
+                    const adjustRef = firebase.database().ref('athletes/' + sanitizeFirebaseKey(userName) + '/gemAdjustments');
+                    const adjustSnapshot = await adjustRef.once('value');
+                    if (adjustSnapshot.exists()) {
+                        adminAdjustment = adjustSnapshot.val() || 0;
+                    }
+                } catch (e) {
+                    console.log('No admin adjustments found');
+                }
             }
 
-            // Calculate available gems (earned - spent)
-            const gemsEarned = successfulReferrals;
+            // Calculate available gems (earned from referrals + admin adjustments - spent)
+            const gemsFromReferrals = successfulReferrals;
+            const totalGemsEarned = gemsFromReferrals + adminAdjustment;
             const gemsSpent = currentUserRewards.gemsSpent || 0;
-            const availableGems = gemsEarned - gemsSpent;
+            const availableGems = totalGemsEarned - gemsSpent;
 
             // Update rewards data in memory
-            currentUserRewards.gemsEarned = gemsEarned;
+            currentUserRewards.gemsEarned = totalGemsEarned;
 
             // Update Clutch Gems count display (show available gems)
             document.getElementById('clutchGemsCount').textContent = availableGems;
@@ -5523,7 +5888,7 @@
 
             // Calculate progress percentage based on total earned (max at 5 gems = 100%)
             const maxGems = 5;
-            const progressPercent = Math.min((gemsEarned / maxGems) * 100, 100);
+            const progressPercent = Math.min((totalGemsEarned / maxGems) * 100, 100);
 
             // Animate progress bar after a short delay
             setTimeout(() => {
@@ -5531,10 +5896,10 @@
             }, 300);
 
             // Update milestones based on total earned
-            updateMilestone('milestone0', gemsEarned >= 0, gemsEarned === 0);
-            updateMilestone('milestone2', gemsEarned >= 2, gemsEarned >= 1 && gemsEarned < 2);
-            updateMilestone('milestone3', gemsEarned >= 3, gemsEarned >= 2 && gemsEarned < 3);
-            updateMilestone('milestone5', gemsEarned >= 5, gemsEarned >= 3 && gemsEarned < 5);
+            updateMilestone('milestone0', totalGemsEarned >= 0, totalGemsEarned === 0);
+            updateMilestone('milestone2', totalGemsEarned >= 2, totalGemsEarned >= 1 && totalGemsEarned < 2);
+            updateMilestone('milestone3', totalGemsEarned >= 3, totalGemsEarned >= 2 && totalGemsEarned < 3);
+            updateMilestone('milestone5', totalGemsEarned >= 5, totalGemsEarned >= 3 && totalGemsEarned < 5);
 
             // Update reward cards based on available gems and redemption status
             updateRewardCardWithRedemption('rewardCard2', 'shirt', 2, availableGems);
