@@ -5837,11 +5837,26 @@
         async function saveUserRewards(userName, rewardsData) {
             try {
                 const sanitizedName = sanitizeFirebaseKey(userName);
-                await firebase.database().ref('athletes/' + sanitizedName + '/rewards').set(rewardsData);
+
+                // Ensure the athlete entry exists
+                const athleteRef = firebase.database().ref('athletes/' + sanitizedName);
+                const athleteSnapshot = await athleteRef.once('value');
+                if (!athleteSnapshot.exists()) {
+                    // Create basic athlete entry if it doesn't exist
+                    await athleteRef.set({ name: userName });
+                }
+
+                // Only save the fields we need (not calculated fields like gemsEarned)
+                const dataToSave = {
+                    gemsSpent: rewardsData.gemsSpent || 0,
+                    redemptions: rewardsData.redemptions || []
+                };
+                await firebase.database().ref('athletes/' + sanitizedName + '/rewards').set(dataToSave);
                 console.log('Rewards saved to Firebase');
                 return true;
             } catch (error) {
                 console.error('Error saving rewards:', error);
+                console.error('Error details:', error.message, error.code);
                 return false;
             }
         }
