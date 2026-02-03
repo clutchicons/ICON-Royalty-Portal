@@ -1486,7 +1486,7 @@
             </div>
 
             <div id="jersey20Alert" class="alert" style="display: none;">
-                <strong>Note:</strong> <span id="jersey20Count"></span> items had JERSEY20 discount applied (no royalty on those orders).
+                <strong>Note:</strong> <span id="jersey20Count"></span> items had a no-royalty discount applied (no royalty on those orders).
             </div>
 
             <div class="alert" style="background: #e3f2fd; border-color: #2196f3; color: #0d47a1;">
@@ -2122,6 +2122,85 @@
                                         </button>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+
+                        <!-- Discount Code Management Section -->
+                        <div style="margin-top: 40px; border-top: 3px solid #e0e0e0; padding-top: 30px;">
+                            <h3 style="margin-bottom: 20px;">Discount Code Management</h3>
+
+                            <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; border-left: 4px solid #2196f3; margin-bottom: 20px;">
+                                <p style="margin: 0; color: #1565c0;">
+                                    Search for orders by order number and apply a no-royalty discount code. Orders with a no-royalty discount will have $0 royalty.
+                                </p>
+                            </div>
+
+                            <!-- Order Search -->
+                            <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                                <h4 style="margin-bottom: 15px;">Search Orders</h4>
+                                <div style="display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap;">
+                                    <div style="flex: 1; min-width: 200px;">
+                                        <label for="discountOrderSearch" style="display: block; margin-bottom: 5px; font-weight: 600;">Order Number</label>
+                                        <input type="text"
+                                               id="discountOrderSearch"
+                                               placeholder="Enter order number..."
+                                               style="width: 100%; padding: 10px; border: 2px solid #e0e0e0;">
+                                    </div>
+                                    <button class="btn" onclick="searchOrdersForDiscount()" style="background: #8a2be2; padding: 10px 20px; white-space: nowrap;">
+                                        Search
+                                    </button>
+                                    <button class="btn" onclick="showAllNoRoyaltyOrders()" style="background: #17a2b8; padding: 10px 20px; white-space: nowrap;">
+                                        Show All No-Royalty Orders
+                                    </button>
+                                </div>
+
+                                <!-- Search Results -->
+                                <div id="discountSearchResults" style="margin-top: 20px; display: none;">
+                                    <h4 style="margin-bottom: 10px;">Search Results</h4>
+                                    <div id="discountSearchStatus" style="margin-bottom: 10px; font-weight: 600;"></div>
+                                    <div style="overflow-x: auto; max-height: 400px; overflow-y: auto;">
+                                        <table>
+                                            <thead>
+                                                <tr>
+                                                    <th style="width: 30px;"><input type="checkbox" id="discountSelectAll" onchange="toggleDiscountSelectAll()"></th>
+                                                    <th>Order #</th>
+                                                    <th>Athlete</th>
+                                                    <th>Product</th>
+                                                    <th>Date</th>
+                                                    <th>Current Discount</th>
+                                                    <th>Royalty</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="discountSearchResultsBody">
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Apply Discount Code -->
+                            <div id="discountApplySection" style="background: #fff3cd; padding: 20px; border-radius: 8px; border: 2px solid #ffc107; display: none;">
+                                <h4 style="margin-bottom: 15px; color: #856404;">Apply No-Royalty Discount Code</h4>
+                                <p style="color: #856404; margin-bottom: 15px;">
+                                    This will mark the selected orders with the discount code and set their royalty to $0.
+                                </p>
+                                <div style="display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 15px;">
+                                    <div style="flex: 1; min-width: 200px;">
+                                        <label for="discountCodeInput" style="display: block; margin-bottom: 5px; font-weight: 600;">Discount Code</label>
+                                        <input type="text"
+                                               id="discountCodeInput"
+                                               value="SELFORDERNOROYALTY"
+                                               placeholder="e.g., SELFORDERNOROYALTY"
+                                               style="width: 100%; padding: 10px; border: 2px solid #e0e0e0;">
+                                    </div>
+                                    <button class="btn" onclick="applyDiscountToSelected()" style="background: #28a745; padding: 10px 20px; white-space: nowrap;">
+                                        Apply to Selected Orders
+                                    </button>
+                                    <button class="btn" onclick="removeDiscountFromSelected()" style="background: #dc3545; padding: 10px 20px; white-space: nowrap;">
+                                        Remove Discount from Selected
+                                    </button>
+                                </div>
+                                <div id="discountApplyStatus" style="display: none; padding: 10px; border-radius: 4px; margin-top: 10px;"></div>
                             </div>
                         </div>
 
@@ -3641,8 +3720,9 @@
 
         function calculateRoyalty(row) {
             const hasJersey20 = normalizeBoolean(row.has_jersey20);
-            
-            if (hasJersey20) {
+            const noRoyalty = normalizeBoolean(row.no_royalty);
+
+            if (hasJersey20 || noRoyalty) {
                 return 0;
             }
             
@@ -3714,11 +3794,12 @@
                 }
                 
                 const hasJersey20 = normalizeBoolean(row.has_jersey20);
+                const noRoyalty = normalizeBoolean(row.no_royalty);
 
-                if (hasJersey20) {
+                if (hasJersey20 || noRoyalty) {
                     jersey20Count++;
                 }
-                
+
                 const month = row.month_year || '2024-01';
                 monthlyData[month] = (monthlyData[month] || 0) + royalty;
             });
@@ -3853,6 +3934,18 @@
                 }
 
                 const hasJersey20 = normalizeBoolean(row.has_jersey20);
+                const noRoyalty = normalizeBoolean(row.no_royalty);
+                const discountCode = row.discount_code || '';
+
+                // Build discount badge
+                let discountBadge = '-';
+                if (hasJersey20) {
+                    discountBadge = '<span class="badge badge-warning">JERSEY20</span>';
+                } else if (noRoyalty && discountCode) {
+                    discountBadge = `<span class="badge badge-warning">${discountCode}</span>`;
+                } else if (noRoyalty) {
+                    discountBadge = '<span class="badge badge-warning">NO ROYALTY</span>';
+                }
 
                 // Check if this is organization view (has athlete_name field from organizationData)
                 const productDisplay = row.athlete_name
@@ -3868,7 +3961,7 @@
                     <td>${productDisplay}</td>
                     <td>${date}</td>
                     <td>${payoutDate}</td>
-                    <td>${hasJersey20 ? '<span class="badge badge-warning">JERSEY20</span>' : '-'}</td>
+                    <td>${discountBadge}</td>
                     <td>$${royalty}</td>
                 `;
                 tbody.appendChild(tr);
@@ -4003,14 +4096,16 @@
                 return;
             }
             
-            let csv = 'Order Number,Product,Date,Discount Code,Has JERSEY20,Royalty\n';
+            let csv = 'Order Number,Product,Date,Discount Code,No Royalty,Royalty\n';
             data.forEach(row => {
                 const date = row.created_at ? new Date(row.created_at).toLocaleDateString() : 'N/A';
                 const productName = (row.product_name || row.lineitem_name || '').replace(/"/g, '""');
                 const hasJersey20 = normalizeBoolean(row.has_jersey20);
+                const noRoyalty = normalizeBoolean(row.no_royalty);
+                const isNoRoyalty = hasJersey20 || noRoyalty;
                 const royalty = row.calculated_royalty !== undefined ? row.calculated_royalty : calculateRoyalty(row);
-                
-                csv += `${row.order_number},"${productName}",${date},${row.discount_code || ''},${hasJersey20},${royalty}\n`;
+
+                csv += `${row.order_number},"${productName}",${date},${row.discount_code || ''},${isNoRoyalty},${royalty}\n`;
             });
             
             const blob = new Blob([csv], { type: 'text/csv' });
@@ -4548,6 +4643,285 @@
             if (event.target.classList.contains('modal')) {
                 event.target.style.display = 'none';
             }
+        }
+
+        // ========== DISCOUNT CODE MANAGEMENT FUNCTIONS ==========
+
+        let discountSearchResults = [];
+
+        function searchOrdersForDiscount() {
+            const searchInput = document.getElementById('discountOrderSearch').value.trim();
+            if (!searchInput) {
+                alert('Please enter an order number to search.');
+                return;
+            }
+
+            // Search through allData for matching order numbers
+            const results = allData.filter(row => {
+                const orderNum = String(row.order_number || '');
+                return orderNum.includes(searchInput);
+            });
+
+            displayDiscountSearchResults(results, `Found ${results.length} order(s) matching "${searchInput}"`);
+        }
+
+        function showAllNoRoyaltyOrders() {
+            const results = allData.filter(row => {
+                return normalizeBoolean(row.has_jersey20) || normalizeBoolean(row.no_royalty);
+            });
+
+            displayDiscountSearchResults(results, `Found ${results.length} order(s) with no-royalty discounts`);
+        }
+
+        function displayDiscountSearchResults(results, statusText) {
+            discountSearchResults = results;
+
+            const resultsDiv = document.getElementById('discountSearchResults');
+            const statusDiv = document.getElementById('discountSearchStatus');
+            const tbody = document.getElementById('discountSearchResultsBody');
+            const applySection = document.getElementById('discountApplySection');
+
+            resultsDiv.style.display = 'block';
+            statusDiv.textContent = statusText;
+
+            if (results.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #999;">No orders found</td></tr>';
+                applySection.style.display = 'none';
+                return;
+            }
+
+            applySection.style.display = 'block';
+
+            tbody.innerHTML = results.map((row, index) => {
+                const date = row.created_at ? new Date(row.created_at).toLocaleDateString() : 'N/A';
+                const productName = row.product_name || row.lineitem_name || 'Unknown Product';
+                const hasJersey20 = normalizeBoolean(row.has_jersey20);
+                const noRoyalty = normalizeBoolean(row.no_royalty);
+                const discountCode = row.discount_code || '';
+                const royalty = calculateRoyalty(row);
+
+                let discountDisplay = '-';
+                if (hasJersey20) {
+                    discountDisplay = '<span class="badge badge-warning">JERSEY20</span>';
+                } else if (noRoyalty && discountCode) {
+                    discountDisplay = `<span class="badge badge-warning">${discountCode}</span>`;
+                } else if (noRoyalty) {
+                    discountDisplay = '<span class="badge badge-warning">NO ROYALTY</span>';
+                } else if (discountCode) {
+                    discountDisplay = discountCode;
+                }
+
+                return `<tr>
+                    <td><input type="checkbox" class="discount-order-checkbox" data-index="${index}"></td>
+                    <td>${row.order_number || 'N/A'}</td>
+                    <td>${row.athlete_name || 'Unknown'}</td>
+                    <td>${productName}</td>
+                    <td>${date}</td>
+                    <td>${discountDisplay}</td>
+                    <td>$${royalty}</td>
+                </tr>`;
+            }).join('');
+
+            // Reset select all checkbox
+            document.getElementById('discountSelectAll').checked = false;
+        }
+
+        function toggleDiscountSelectAll() {
+            const selectAll = document.getElementById('discountSelectAll').checked;
+            document.querySelectorAll('.discount-order-checkbox').forEach(cb => {
+                cb.checked = selectAll;
+            });
+        }
+
+        function getSelectedDiscountOrders() {
+            const selected = [];
+            document.querySelectorAll('.discount-order-checkbox:checked').forEach(cb => {
+                const index = parseInt(cb.getAttribute('data-index'));
+                if (discountSearchResults[index]) {
+                    selected.push(discountSearchResults[index]);
+                }
+            });
+            return selected;
+        }
+
+        async function applyDiscountToSelected() {
+            const selectedOrders = getSelectedDiscountOrders();
+            if (selectedOrders.length === 0) {
+                alert('Please select at least one order.');
+                return;
+            }
+
+            const discountCode = document.getElementById('discountCodeInput').value.trim();
+            if (!discountCode) {
+                alert('Please enter a discount code.');
+                return;
+            }
+
+            if (!confirm(`Apply discount code "${discountCode}" (no royalty) to ${selectedOrders.length} order(s)?`)) {
+                return;
+            }
+
+            const statusDiv = document.getElementById('discountApplyStatus');
+            statusDiv.style.display = 'block';
+            statusDiv.style.background = '#e3f2fd';
+            statusDiv.style.color = '#1565c0';
+            statusDiv.innerHTML = `Updating ${selectedOrders.length} order(s)...`;
+
+            try {
+                let updated = 0;
+                let errors = 0;
+
+                for (const order of selectedOrders) {
+                    try {
+                        await updateOrderDiscount(order, discountCode, true);
+                        updated++;
+                    } catch (err) {
+                        console.error('Error updating order:', order.order_number, err);
+                        errors++;
+                    }
+                }
+
+                // Reload data to reflect changes
+                await loadRoyaltyData();
+                processData();
+
+                statusDiv.style.background = '#d4edda';
+                statusDiv.style.color = '#155724';
+                statusDiv.innerHTML = `Done! Updated ${updated} order(s).${errors > 0 ? ` ${errors} error(s) occurred.` : ''} Dashboard will reflect changes on next page load.`;
+
+                // Re-run the search to show updated results
+                if (document.getElementById('discountOrderSearch').value.trim()) {
+                    searchOrdersForDiscount();
+                } else {
+                    showAllNoRoyaltyOrders();
+                }
+            } catch (error) {
+                console.error('Error applying discounts:', error);
+                statusDiv.style.background = '#f8d7da';
+                statusDiv.style.color = '#721c24';
+                statusDiv.innerHTML = `Error: ${error.message}`;
+            }
+        }
+
+        async function removeDiscountFromSelected() {
+            const selectedOrders = getSelectedDiscountOrders();
+            if (selectedOrders.length === 0) {
+                alert('Please select at least one order.');
+                return;
+            }
+
+            if (!confirm(`Remove no-royalty discount from ${selectedOrders.length} order(s)? Their royalties will be recalculated normally.`)) {
+                return;
+            }
+
+            const statusDiv = document.getElementById('discountApplyStatus');
+            statusDiv.style.display = 'block';
+            statusDiv.style.background = '#e3f2fd';
+            statusDiv.style.color = '#1565c0';
+            statusDiv.innerHTML = `Removing discount from ${selectedOrders.length} order(s)...`;
+
+            try {
+                let updated = 0;
+                let errors = 0;
+
+                for (const order of selectedOrders) {
+                    try {
+                        await updateOrderDiscount(order, '', false);
+                        updated++;
+                    } catch (err) {
+                        console.error('Error updating order:', order.order_number, err);
+                        errors++;
+                    }
+                }
+
+                // Reload data to reflect changes
+                await loadRoyaltyData();
+                processData();
+
+                statusDiv.style.background = '#d4edda';
+                statusDiv.style.color = '#155724';
+                statusDiv.innerHTML = `Done! Removed discount from ${updated} order(s).${errors > 0 ? ` ${errors} error(s) occurred.` : ''} Dashboard will reflect changes on next page load.`;
+
+                // Re-run the search to show updated results
+                if (document.getElementById('discountOrderSearch').value.trim()) {
+                    searchOrdersForDiscount();
+                } else {
+                    showAllNoRoyaltyOrders();
+                }
+            } catch (error) {
+                console.error('Error removing discounts:', error);
+                statusDiv.style.background = '#f8d7da';
+                statusDiv.style.color = '#721c24';
+                statusDiv.innerHTML = `Error: ${error.message}`;
+            }
+        }
+
+        async function updateOrderDiscount(order, discountCode, noRoyalty) {
+            const athleteName = order.athlete_name;
+            if (!athleteName) {
+                throw new Error('Order missing athlete_name');
+            }
+
+            const sanitizedAthleteName = sanitizeFirebaseKey(athleteName);
+            const updates = {};
+
+            // Update in salesByAthlete
+            // Need to find the order key under this athlete
+            const athleteSalesSnapshot = await database.ref(`salesByAthlete/${sanitizedAthleteName}`).once('value');
+            const athleteSales = athleteSalesSnapshot.val() || {};
+
+            let foundKey = null;
+            for (const [key, sale] of Object.entries(athleteSales)) {
+                if (String(sale.order_number) === String(order.order_number) &&
+                    (sale.product_name || sale.lineitem_name) === (order.product_name || order.lineitem_name)) {
+                    foundKey = key;
+                    break;
+                }
+            }
+
+            if (foundKey) {
+                updates[`salesByAthlete/${sanitizedAthleteName}/${foundKey}/no_royalty`] = noRoyalty;
+                updates[`salesByAthlete/${sanitizedAthleteName}/${foundKey}/discount_code`] = discountCode;
+            }
+
+            // Update in royaltyData
+            const royaltySnapshot = await database.ref('royaltyData').once('value');
+            const royaltyData = royaltySnapshot.val();
+
+            if (royaltyData) {
+                if (Array.isArray(royaltyData)) {
+                    // Array format - find matching index
+                    for (let i = 0; i < royaltyData.length; i++) {
+                        const entry = royaltyData[i];
+                        if (entry && String(entry.order_number) === String(order.order_number) &&
+                            entry.athlete_name === athleteName &&
+                            (entry.product_name || entry.lineitem_name) === (order.product_name || order.lineitem_name)) {
+                            updates[`royaltyData/${i}/no_royalty`] = noRoyalty;
+                            updates[`royaltyData/${i}/discount_code`] = discountCode;
+                            break;
+                        }
+                    }
+                } else {
+                    // Object format - find matching key
+                    for (const [key, entry] of Object.entries(royaltyData)) {
+                        if (entry && String(entry.order_number) === String(order.order_number) &&
+                            entry.athlete_name === athleteName &&
+                            (entry.product_name || entry.lineitem_name) === (order.product_name || order.lineitem_name)) {
+                            updates[`royaltyData/${key}/no_royalty`] = noRoyalty;
+                            updates[`royaltyData/${key}/discount_code`] = discountCode;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (Object.keys(updates).length === 0) {
+                throw new Error(`Could not find order ${order.order_number} in Firebase`);
+            }
+
+            // Apply all updates atomically
+            await database.ref().update(updates);
+            console.log(`Updated order ${order.order_number} - discount: ${discountCode}, no_royalty: ${noRoyalty}`);
         }
 
         // ========== DATABASE CLEANUP FUNCTIONS ==========
@@ -5644,8 +6018,9 @@
                     }
 
                     const hasJersey20 = normalizeBoolean(row.has_jersey20);
+                    const noRoyalty = normalizeBoolean(row.no_royalty);
 
-                    if (hasJersey20) {
+                    if (hasJersey20 || noRoyalty) {
                         jersey20Count++;
                     }
 
