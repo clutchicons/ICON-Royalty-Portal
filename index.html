@@ -3703,6 +3703,27 @@
             return false;
         }
 
+        // Discount codes that result in $0 royalty
+        const NO_ROYALTY_DISCOUNT_CODES = ['SELFORDERNOROYALTY'];
+
+        // Check if an order has a no-royalty discount applied
+        function isNoRoyaltyOrder(row) {
+            if (normalizeBoolean(row.has_jersey20)) return true;
+            if (normalizeBoolean(row.no_royalty)) return true;
+            const code = (row.discount_code || '').toUpperCase().trim();
+            if (code && NO_ROYALTY_DISCOUNT_CODES.includes(code)) return true;
+            return false;
+        }
+
+        // Get the display label for a no-royalty discount
+        function getDiscountLabel(row) {
+            if (normalizeBoolean(row.has_jersey20)) return 'JERSEY20';
+            const code = (row.discount_code || '').toUpperCase().trim();
+            if (code) return code;
+            if (normalizeBoolean(row.no_royalty)) return 'NO ROYALTY';
+            return '';
+        }
+
         // Helper function to get last 12 months in YYYY-MM format
         function getLast12Months() {
             const months = [];
@@ -3719,10 +3740,7 @@
         }
 
         function calculateRoyalty(row) {
-            const hasJersey20 = normalizeBoolean(row.has_jersey20);
-            const noRoyalty = normalizeBoolean(row.no_royalty);
-
-            if (hasJersey20 || noRoyalty) {
+            if (isNoRoyaltyOrder(row)) {
                 return 0;
             }
             
@@ -3793,17 +3811,14 @@
                     otherItems++;
                 }
                 
-                const hasJersey20 = normalizeBoolean(row.has_jersey20);
-                const noRoyalty = normalizeBoolean(row.no_royalty);
-
-                if (hasJersey20 || noRoyalty) {
+                if (isNoRoyaltyOrder(row)) {
                     jersey20Count++;
                 }
 
                 const month = row.month_year || '2024-01';
                 monthlyData[month] = (monthlyData[month] || 0) + royalty;
             });
-            
+
             document.getElementById('totalRoyalties').textContent = `$${Math.round(totalRoyalties)}`;
             document.getElementById('totalOrders').textContent = data.length;
             document.getElementById('gameJerseys').textContent = gameJerseys;
@@ -3933,18 +3948,11 @@
                     payoutDate = payoutMonth.toLocaleDateString();
                 }
 
-                const hasJersey20 = normalizeBoolean(row.has_jersey20);
-                const noRoyalty = normalizeBoolean(row.no_royalty);
-                const discountCode = row.discount_code || '';
-
                 // Build discount badge
                 let discountBadge = '-';
-                if (hasJersey20) {
-                    discountBadge = '<span class="badge badge-warning">JERSEY20</span>';
-                } else if (noRoyalty && discountCode) {
-                    discountBadge = `<span class="badge badge-warning">${discountCode}</span>`;
-                } else if (noRoyalty) {
-                    discountBadge = '<span class="badge badge-warning">NO ROYALTY</span>';
+                if (isNoRoyaltyOrder(row)) {
+                    const label = getDiscountLabel(row);
+                    discountBadge = `<span class="badge badge-warning">${label}</span>`;
                 }
 
                 // Check if this is organization view (has athlete_name field from organizationData)
@@ -4100,12 +4108,10 @@
             data.forEach(row => {
                 const date = row.created_at ? new Date(row.created_at).toLocaleDateString() : 'N/A';
                 const productName = (row.product_name || row.lineitem_name || '').replace(/"/g, '""');
-                const hasJersey20 = normalizeBoolean(row.has_jersey20);
-                const noRoyalty = normalizeBoolean(row.no_royalty);
-                const isNoRoyalty = hasJersey20 || noRoyalty;
+                const noRoyaltyFlag = isNoRoyaltyOrder(row);
                 const royalty = row.calculated_royalty !== undefined ? row.calculated_royalty : calculateRoyalty(row);
 
-                csv += `${row.order_number},"${productName}",${date},${row.discount_code || ''},${isNoRoyalty},${royalty}\n`;
+                csv += `${row.order_number},"${productName}",${date},${row.discount_code || ''},${noRoyaltyFlag},${royalty}\n`;
             });
             
             const blob = new Blob([csv], { type: 'text/csv' });
@@ -4666,9 +4672,7 @@
         }
 
         function showAllNoRoyaltyOrders() {
-            const results = allData.filter(row => {
-                return normalizeBoolean(row.has_jersey20) || normalizeBoolean(row.no_royalty);
-            });
+            const results = allData.filter(row => isNoRoyaltyOrder(row));
 
             displayDiscountSearchResults(results, `Found ${results.length} order(s) with no-royalty discounts`);
         }
@@ -4695,18 +4699,13 @@
             tbody.innerHTML = results.map((row, index) => {
                 const date = row.created_at ? new Date(row.created_at).toLocaleDateString() : 'N/A';
                 const productName = row.product_name || row.lineitem_name || 'Unknown Product';
-                const hasJersey20 = normalizeBoolean(row.has_jersey20);
-                const noRoyalty = normalizeBoolean(row.no_royalty);
-                const discountCode = row.discount_code || '';
                 const royalty = calculateRoyalty(row);
+                const discountCode = row.discount_code || '';
 
                 let discountDisplay = '-';
-                if (hasJersey20) {
-                    discountDisplay = '<span class="badge badge-warning">JERSEY20</span>';
-                } else if (noRoyalty && discountCode) {
-                    discountDisplay = `<span class="badge badge-warning">${discountCode}</span>`;
-                } else if (noRoyalty) {
-                    discountDisplay = '<span class="badge badge-warning">NO ROYALTY</span>';
+                if (isNoRoyaltyOrder(row)) {
+                    const label = getDiscountLabel(row);
+                    discountDisplay = `<span class="badge badge-warning">${label}</span>`;
                 } else if (discountCode) {
                     discountDisplay = discountCode;
                 }
@@ -6017,10 +6016,7 @@
                         otherItems++;
                     }
 
-                    const hasJersey20 = normalizeBoolean(row.has_jersey20);
-                    const noRoyalty = normalizeBoolean(row.no_royalty);
-
-                    if (hasJersey20 || noRoyalty) {
+                    if (isNoRoyaltyOrder(row)) {
                         jersey20Count++;
                     }
 
