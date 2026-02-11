@@ -2204,6 +2204,79 @@
                             </div>
                         </div>
 
+                        <!-- Activity Reports Section -->
+                        <div style="margin-top: 40px; border-top: 3px solid #e0e0e0; padding-top: 30px;">
+                            <h3 style="margin-bottom: 20px;">📊 Activity Reports</h3>
+                            <p style="color: #666; margin-bottom: 20px;">Generate monthly reports for athletes (sales/royalties) or organizations (referrals &amp; bonuses).</p>
+
+                            <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 20px;">
+                                <!-- Report Type -->
+                                <div style="flex: 1; min-width: 180px;">
+                                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Report Type</label>
+                                    <select id="reportType" onchange="onReportTypeChange()" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 4px;">
+                                        <option value="athlete">Athlete Sales Report</option>
+                                        <option value="organization">Organization Report</option>
+                                    </select>
+                                </div>
+
+                                <!-- Month Picker -->
+                                <div style="flex: 1; min-width: 180px;">
+                                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Month</label>
+                                    <input type="month" id="reportMonth" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 4px; box-sizing: border-box;">
+                                </div>
+
+                                <!-- Athlete Selector -->
+                                <div id="reportAthleteSelector" style="flex: 1; min-width: 200px;">
+                                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Athlete</label>
+                                    <select id="reportAthlete" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 4px;">
+                                        <option value="">-- Select Athlete --</option>
+                                        <option value="ALL">All Athletes</option>
+                                    </select>
+                                </div>
+
+                                <!-- Organization Selector (hidden by default) -->
+                                <div id="reportOrgSelector" style="flex: 1; min-width: 200px; display: none;">
+                                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Organization</label>
+                                    <select id="reportOrg" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 4px;">
+                                        <option value="">-- Select Organization --</option>
+                                        <option value="ALL">All Organizations</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <button class="btn" id="generateReportBtn" onclick="generateActivityReport()" style="background: linear-gradient(135deg, #8a2be2, #4a0e8a); max-width: 250px;">
+                                Generate Report
+                            </button>
+
+                            <!-- Report Output -->
+                            <div id="reportOutput" style="display: none; margin-top: 25px;">
+                                <!-- Report Header -->
+                                <div id="reportHeader" style="background: linear-gradient(135deg, #8a2be2, #4a0e8a); color: white; padding: 20px; border-radius: 8px 8px 0 0;">
+                                    <h3 id="reportTitle" style="margin: 0 0 5px 0;"></h3>
+                                    <p id="reportSubtitle" style="margin: 0; opacity: 0.85; font-size: 0.9em;"></p>
+                                </div>
+
+                                <!-- Summary Stats -->
+                                <div id="reportSummary" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; padding: 20px; background: #f8f9fa; border-left: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0;">
+                                </div>
+
+                                <!-- Report Table -->
+                                <div style="overflow-x: auto; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 8px 8px;">
+                                    <table id="reportTable" style="width: 100%; border-collapse: collapse;">
+                                        <thead id="reportTableHead"></thead>
+                                        <tbody id="reportTableBody"></tbody>
+                                    </table>
+                                </div>
+
+                                <!-- Export Button -->
+                                <div style="margin-top: 15px; display: flex; gap: 10px;">
+                                    <button class="btn" onclick="exportReport()" style="background: #28a745; max-width: 200px;">
+                                        Export as CSV
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Database Cleanup Section -->
                         <div style="margin-top: 40px; border-top: 3px solid #e0e0e0; padding-top: 30px;">
                             <h3 style="margin-bottom: 20px;">⚙️ Database Maintenance</h3>
@@ -3885,6 +3958,7 @@
                     loadAthleteOrganizations().then(() => {
                         refreshOrganizationsTable();
                         populateOrganizationSelects();
+                        initReportDropdowns();
                     });
                 });
                 // Load all referrals for admin
@@ -4921,6 +4995,410 @@
             // Apply all updates atomically
             await database.ref().update(updates);
             console.log(`Updated order ${order.order_number} - discount: ${discountCode}, no_royalty: ${noRoyalty}`);
+        }
+
+        // ========== ACTIVITY REPORT FUNCTIONS ==========
+
+        let lastReportData = []; // Stores data for CSV export
+        let lastReportType = ''; // 'athlete' or 'organization'
+
+        // Initialize report dropdowns when admin panel loads
+        function initReportDropdowns() {
+            // Set default month to current month
+            const now = new Date();
+            const monthStr = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+            const monthInput = document.getElementById('reportMonth');
+            if (monthInput) monthInput.value = monthStr;
+
+            // Populate athlete dropdown
+            const athleteSelect = document.getElementById('reportAthlete');
+            if (athleteSelect && athletesList.length > 0) {
+                // Keep the default options, clear dynamic ones
+                athleteSelect.innerHTML = '<option value="">-- Select Athlete --</option><option value="ALL">All Athletes</option>';
+                athletesList.forEach(name => {
+                    if (name !== 'Admin (View All)') {
+                        const opt = document.createElement('option');
+                        opt.value = name;
+                        opt.textContent = name;
+                        athleteSelect.appendChild(opt);
+                    }
+                });
+            }
+
+            // Populate organization dropdown
+            const orgSelect = document.getElementById('reportOrg');
+            if (orgSelect && allOrganizations) {
+                orgSelect.innerHTML = '<option value="">-- Select Organization --</option><option value="ALL">All Organizations</option>';
+                Object.keys(allOrganizations).sort((a, b) =>
+                    (allOrganizations[a].name || a).localeCompare(allOrganizations[b].name || b)
+                ).forEach(orgId => {
+                    const org = allOrganizations[orgId];
+                    const opt = document.createElement('option');
+                    opt.value = orgId;
+                    opt.textContent = org.name || orgId;
+                    orgSelect.appendChild(opt);
+                });
+            }
+        }
+
+        function onReportTypeChange() {
+            const type = document.getElementById('reportType').value;
+            document.getElementById('reportAthleteSelector').style.display = type === 'athlete' ? 'block' : 'none';
+            document.getElementById('reportOrgSelector').style.display = type === 'organization' ? 'block' : 'none';
+            document.getElementById('reportOutput').style.display = 'none';
+        }
+
+        function generateActivityReport() {
+            const type = document.getElementById('reportType').value;
+            const monthVal = document.getElementById('reportMonth').value;
+
+            if (!monthVal) {
+                alert('Please select a month.');
+                return;
+            }
+
+            if (type === 'athlete') {
+                generateAthleteReport(monthVal);
+            } else {
+                generateOrganizationReport(monthVal);
+            }
+        }
+
+        function generateAthleteReport(monthVal) {
+            const selectedAthlete = document.getElementById('reportAthlete').value;
+            if (!selectedAthlete) {
+                alert('Please select an athlete.');
+                return;
+            }
+
+            const [year, month] = monthVal.split('-').map(Number);
+            const monthName = new Date(year, month - 1).toLocaleString('default', { month: 'long', year: 'numeric' });
+
+            // Filter sales data for the selected month
+            let salesData = (allData || []).filter(row => {
+                if (!row.created_at) return false;
+                const d = new Date(row.created_at);
+                return d.getFullYear() === year && (d.getMonth() + 1) === month;
+            });
+
+            // Filter by athlete if not "ALL"
+            if (selectedAthlete !== 'ALL') {
+                const selectedLower = selectedAthlete.toLowerCase();
+                salesData = salesData.filter(row => {
+                    const name = (row.athlete_name || '').toLowerCase();
+                    return name === selectedLower;
+                });
+            }
+
+            // Calculate royalties
+            salesData.forEach(row => {
+                row._royalty = row.calculated_royalty !== undefined ? row.calculated_royalty : calculateRoyalty(row);
+                row._noRoyalty = isNoRoyaltyOrder(row);
+            });
+
+            const totalOrders = salesData.length;
+            const totalRoyalty = salesData.reduce((sum, r) => sum + (r._royalty || 0), 0);
+            const paidOrders = salesData.filter(r => !r._noRoyalty).length;
+            const noRoyaltyOrders = salesData.filter(r => r._noRoyalty).length;
+
+            // Aggregate per athlete for "ALL" view
+            let tableRows = [];
+            if (selectedAthlete === 'ALL') {
+                const byAthlete = {};
+                salesData.forEach(row => {
+                    const name = row.athlete_name || 'Unknown';
+                    if (!byAthlete[name]) byAthlete[name] = { orders: 0, royalty: 0, noRoyalty: 0 };
+                    byAthlete[name].orders++;
+                    byAthlete[name].royalty += (row._royalty || 0);
+                    if (row._noRoyalty) byAthlete[name].noRoyalty++;
+                });
+                tableRows = Object.keys(byAthlete).sort().map(name => ({
+                    athlete: name,
+                    orders: byAthlete[name].orders,
+                    paidOrders: byAthlete[name].orders - byAthlete[name].noRoyalty,
+                    noRoyalty: byAthlete[name].noRoyalty,
+                    royalty: byAthlete[name].royalty
+                }));
+            } else {
+                tableRows = salesData.map(row => ({
+                    orderNumber: row.order_number,
+                    product: row.product_name || row.lineitem_name || 'N/A',
+                    date: row.created_at ? new Date(row.created_at).toLocaleDateString() : 'N/A',
+                    discountCode: row.discount_code || '',
+                    noRoyalty: row._noRoyalty ? 'Yes' : 'No',
+                    royalty: row._royalty
+                }));
+            }
+
+            lastReportData = tableRows;
+            lastReportType = 'athlete';
+
+            // Render
+            const title = selectedAthlete === 'ALL' ? 'All Athletes Sales Report' : `${selectedAthlete} — Sales Report`;
+            document.getElementById('reportTitle').textContent = title;
+            document.getElementById('reportSubtitle').textContent = monthName + '  |  Payout date: ' + getPayoutDate(year, month);
+
+            document.getElementById('reportSummary').innerHTML =
+                reportStatCard('Total Orders', totalOrders) +
+                reportStatCard('Paid Orders', paidOrders) +
+                reportStatCard('No-Royalty', noRoyaltyOrders) +
+                reportStatCard('Total Royalties', '$' + totalRoyalty.toFixed(2));
+
+            // Table
+            const thead = document.getElementById('reportTableHead');
+            const tbody = document.getElementById('reportTableBody');
+
+            if (selectedAthlete === 'ALL') {
+                thead.innerHTML = '<tr><th>Athlete</th><th>Orders</th><th>Paid Orders</th><th>No-Royalty</th><th style="text-align:right;">Royalties</th></tr>';
+                tbody.innerHTML = tableRows.map(r =>
+                    `<tr><td>${r.athlete}</td><td>${r.orders}</td><td>${r.paidOrders}</td><td>${r.noRoyalty}</td><td style="text-align:right;">$${r.royalty.toFixed(2)}</td></tr>`
+                ).join('') || '<tr><td colspan="5" style="text-align:center;padding:20px;color:#999;">No sales data for this month.</td></tr>';
+            } else {
+                thead.innerHTML = '<tr><th>Order #</th><th>Product</th><th>Date</th><th>Discount</th><th>No-Royalty</th><th style="text-align:right;">Royalty</th></tr>';
+                tbody.innerHTML = tableRows.map(r =>
+                    `<tr><td>${r.orderNumber}</td><td>${r.product}</td><td>${r.date}</td><td>${r.discountCode}</td><td>${r.noRoyalty}</td><td style="text-align:right;">$${r.royalty.toFixed(2)}</td></tr>`
+                ).join('') || '<tr><td colspan="6" style="text-align:center;padding:20px;color:#999;">No sales data for this month.</td></tr>';
+            }
+
+            document.getElementById('reportOutput').style.display = 'block';
+        }
+
+        function generateOrganizationReport(monthVal) {
+            const selectedOrg = document.getElementById('reportOrg').value;
+            if (!selectedOrg) {
+                alert('Please select an organization.');
+                return;
+            }
+
+            const [year, month] = monthVal.split('-').map(Number);
+            const monthName = new Date(year, month - 1).toLocaleString('default', { month: 'long', year: 'numeric' });
+
+            const btn = document.getElementById('generateReportBtn');
+            btn.disabled = true;
+            btn.textContent = 'Generating...';
+
+            // Determine which org IDs to report on
+            const orgIds = selectedOrg === 'ALL'
+                ? Object.keys(allOrganizations)
+                : [selectedOrg];
+
+            // Gather all data for each org
+            const orgReports = [];
+
+            // For each org: tagged athletes, their sales in the month, and org referrals in the month
+            const promises = orgIds.map(orgId => {
+                const org = allOrganizations[orgId];
+                const orgName = org ? org.name : orgId;
+                const bonusPct = org ? (parseFloat(org.bonusPercentage) || 0) : 0;
+                const referralBonus = org ? (parseFloat(org.referralPerSale) || 0) : 0;
+
+                // Get tagged athletes for this org
+                const taggedAthletes = Object.keys(athleteOrganizations).filter(
+                    name => athleteOrganizations[name] === orgId
+                );
+
+                // Get athlete sales for month
+                let athleteSales = (allData || []).filter(row => {
+                    if (!row.created_at) return false;
+                    const d = new Date(row.created_at);
+                    if (d.getFullYear() !== year || (d.getMonth() + 1) !== month) return false;
+                    const rowName = (row.athlete_name || '').toLowerCase();
+                    return taggedAthletes.some(a => a.toLowerCase() === rowName);
+                });
+
+                let totalRoyalty = 0;
+                athleteSales.forEach(row => {
+                    const r = row.calculated_royalty !== undefined ? row.calculated_royalty : calculateRoyalty(row);
+                    totalRoyalty += r;
+                });
+
+                const orgBonus = totalRoyalty * (bonusPct / 100);
+
+                // Get referrals for month from Firebase
+                const refPath = 'organizations/' + sanitizeFirebaseKey(orgId) + '/referrals';
+                return firebase.database().ref(refPath).once('value').then(snap => {
+                    const refs = snap.val() || {};
+                    const monthReferrals = Object.values(refs).filter(ref => {
+                        if (!ref.dateReferred) return false;
+                        const d = new Date(ref.dateReferred);
+                        return d.getFullYear() === year && (d.getMonth() + 1) === month;
+                    });
+
+                    const successReferrals = monthReferrals.filter(r => r.status === 'success');
+                    const pendingReferrals = monthReferrals.filter(r => r.status === 'pending');
+                    const referralPayout = successReferrals.length * referralBonus;
+
+                    orgReports.push({
+                        orgId: orgId,
+                        orgName: orgName,
+                        taggedAthletes: taggedAthletes.length,
+                        totalSales: athleteSales.length,
+                        totalRoyalty: totalRoyalty,
+                        bonusPct: bonusPct,
+                        orgBonus: orgBonus,
+                        totalReferrals: monthReferrals.length,
+                        successReferrals: successReferrals.length,
+                        pendingReferrals: pendingReferrals.length,
+                        referralBonus: referralBonus,
+                        referralPayout: referralPayout,
+                        totalPayout: orgBonus + referralPayout,
+                        referralDetails: monthReferrals
+                    });
+                });
+            });
+
+            Promise.all(promises).then(() => {
+                orgReports.sort((a, b) => a.orgName.localeCompare(b.orgName));
+
+                // Calculate totals
+                const totalSales = orgReports.reduce((s, r) => s + r.totalSales, 0);
+                const totalBonus = orgReports.reduce((s, r) => s + r.orgBonus, 0);
+                const totalRefs = orgReports.reduce((s, r) => s + r.totalReferrals, 0);
+                const totalRefPay = orgReports.reduce((s, r) => s + r.referralPayout, 0);
+                const totalPayout = orgReports.reduce((s, r) => s + r.totalPayout, 0);
+
+                lastReportType = 'organization';
+
+                if (selectedOrg === 'ALL') {
+                    // Summary view of all orgs
+                    lastReportData = orgReports.map(r => ({
+                        organization: r.orgName,
+                        athletes: r.taggedAthletes,
+                        sales: r.totalSales,
+                        salesBonus: r.orgBonus,
+                        referrals: r.totalReferrals,
+                        successRefs: r.successReferrals,
+                        referralPayout: r.referralPayout,
+                        totalPayout: r.totalPayout
+                    }));
+
+                    document.getElementById('reportTitle').textContent = 'All Organizations Report';
+                    document.getElementById('reportSubtitle').textContent = monthName;
+
+                    document.getElementById('reportSummary').innerHTML =
+                        reportStatCard('Organizations', orgReports.length) +
+                        reportStatCard('Total Sales', totalSales) +
+                        reportStatCard('Sales Bonus', '$' + totalBonus.toFixed(2)) +
+                        reportStatCard('Referrals', totalRefs) +
+                        reportStatCard('Referral Pay', '$' + totalRefPay.toFixed(2)) +
+                        reportStatCard('Total Payout', '$' + totalPayout.toFixed(2));
+
+                    const thead = document.getElementById('reportTableHead');
+                    const tbody = document.getElementById('reportTableBody');
+                    thead.innerHTML = '<tr><th>Organization</th><th>Athletes</th><th>Sales</th><th style="text-align:right;">Sales Bonus</th><th>Referrals</th><th>Successful</th><th style="text-align:right;">Referral Pay</th><th style="text-align:right;">Total Payout</th></tr>';
+                    tbody.innerHTML = lastReportData.map(r =>
+                        `<tr><td>${r.organization}</td><td>${r.athletes}</td><td>${r.sales}</td><td style="text-align:right;">$${r.salesBonus.toFixed(2)}</td><td>${r.referrals}</td><td>${r.successRefs}</td><td style="text-align:right;">$${r.referralPayout.toFixed(2)}</td><td style="text-align:right;font-weight:600;">$${r.totalPayout.toFixed(2)}</td></tr>`
+                    ).join('') || '<tr><td colspan="8" style="text-align:center;padding:20px;color:#999;">No activity for this month.</td></tr>';
+                } else {
+                    // Single org detailed view
+                    const r = orgReports[0];
+
+                    lastReportData = r.referralDetails.map(ref => ({
+                        friendName: ref.friendName || 'N/A',
+                        instagram: ref.friendInstagram || '',
+                        date: ref.dateReferred ? new Date(ref.dateReferred).toLocaleDateString() : 'N/A',
+                        status: ref.status || 'pending',
+                        bonus: ref.status === 'success' ? r.referralBonus : 0
+                    }));
+
+                    document.getElementById('reportTitle').textContent = r.orgName + ' — Organization Report';
+                    document.getElementById('reportSubtitle').textContent = monthName + '  |  Bonus: ' + r.bonusPct + '% on sales  |  $' + r.referralBonus.toFixed(2) + ' per signup';
+
+                    document.getElementById('reportSummary').innerHTML =
+                        reportStatCard('Athletes', r.taggedAthletes) +
+                        reportStatCard('Sales', r.totalSales) +
+                        reportStatCard('Sales Bonus', '$' + r.orgBonus.toFixed(2)) +
+                        reportStatCard('Referrals', r.totalReferrals) +
+                        reportStatCard('Successful', r.successReferrals) +
+                        reportStatCard('Pending', r.pendingReferrals) +
+                        reportStatCard('Referral Pay', '$' + r.referralPayout.toFixed(2)) +
+                        reportStatCard('Total Payout', '$' + r.totalPayout.toFixed(2));
+
+                    const thead = document.getElementById('reportTableHead');
+                    const tbody = document.getElementById('reportTableBody');
+                    thead.innerHTML = '<tr><th>Referred Friend</th><th>Instagram</th><th>Date</th><th>Status</th><th style="text-align:right;">Bonus</th></tr>';
+                    tbody.innerHTML = lastReportData.map(ref => {
+                        const badge = ref.status === 'success'
+                            ? '<span style="background:#d4edda;color:#155724;padding:3px 8px;border-radius:4px;font-size:0.85em;">Success</span>'
+                            : '<span style="background:#fff3cd;color:#856404;padding:3px 8px;border-radius:4px;font-size:0.85em;">Pending</span>';
+                        return `<tr><td>${ref.friendName}</td><td>${ref.instagram}</td><td>${ref.date}</td><td>${badge}</td><td style="text-align:right;">$${ref.bonus.toFixed(2)}</td></tr>`;
+                    }).join('') || '<tr><td colspan="5" style="text-align:center;padding:20px;color:#999;">No referrals for this month.</td></tr>';
+                }
+
+                document.getElementById('reportOutput').style.display = 'block';
+            }).catch(err => {
+                console.error('Error generating organization report:', err);
+                alert('Error generating report. Please try again.');
+            }).finally(() => {
+                btn.disabled = false;
+                btn.textContent = 'Generate Report';
+            });
+        }
+
+        function reportStatCard(label, value) {
+            return `<div style="background:white;padding:15px;border-radius:8px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+                <div style="font-size:0.8em;color:#666;text-transform:uppercase;letter-spacing:0.5px;">${label}</div>
+                <div style="font-size:1.4em;font-weight:700;color:#333;margin-top:4px;">${value}</div>
+            </div>`;
+        }
+
+        function getPayoutDate(year, month) {
+            // Payout is 12th of the following month
+            const payoutMonth = month === 12 ? 1 : month + 1;
+            const payoutYear = month === 12 ? year + 1 : year;
+            return new Date(payoutYear, payoutMonth - 1, 12).toLocaleDateString();
+        }
+
+        function exportReport() {
+            if (!lastReportData || lastReportData.length === 0) {
+                alert('No report data to export.');
+                return;
+            }
+
+            const monthVal = document.getElementById('reportMonth').value;
+            let csv = '';
+            let filename = '';
+
+            if (lastReportType === 'athlete') {
+                const sel = document.getElementById('reportAthlete').value;
+                if (sel === 'ALL') {
+                    csv = 'Athlete,Orders,Paid Orders,No-Royalty Orders,Royalties\n';
+                    lastReportData.forEach(r => {
+                        csv += `"${r.athlete}",${r.orders},${r.paidOrders},${r.noRoyalty},${r.royalty.toFixed(2)}\n`;
+                    });
+                    filename = `all_athletes_report_${monthVal}.csv`;
+                } else {
+                    csv = 'Order Number,Product,Date,Discount Code,No Royalty,Royalty\n';
+                    lastReportData.forEach(r => {
+                        csv += `${r.orderNumber},"${(r.product || '').replace(/"/g, '""')}",${r.date},${r.discountCode},${r.noRoyalty},${r.royalty.toFixed(2)}\n`;
+                    });
+                    filename = `${sel.replace(/\s+/g, '_')}_report_${monthVal}.csv`;
+                }
+            } else {
+                const sel = document.getElementById('reportOrg').value;
+                if (sel === 'ALL') {
+                    csv = 'Organization,Athletes,Sales,Sales Bonus,Referrals,Successful Referrals,Referral Payout,Total Payout\n';
+                    lastReportData.forEach(r => {
+                        csv += `"${r.organization}",${r.athletes},${r.sales},${r.salesBonus.toFixed(2)},${r.referrals},${r.successRefs},${r.referralPayout.toFixed(2)},${r.totalPayout.toFixed(2)}\n`;
+                    });
+                    filename = `all_organizations_report_${monthVal}.csv`;
+                } else {
+                    const orgName = allOrganizations[sel] ? allOrganizations[sel].name : sel;
+                    csv = 'Referred Friend,Instagram,Date,Status,Bonus\n';
+                    lastReportData.forEach(r => {
+                        csv += `"${r.friendName}",${r.instagram},${r.date},${r.status},${r.bonus.toFixed(2)}\n`;
+                    });
+                    filename = `${orgName.replace(/\s+/g, '_')}_report_${monthVal}.csv`;
+                }
+            }
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            window.URL.revokeObjectURL(url);
         }
 
         // ========== DATABASE CLEANUP FUNCTIONS ==========
