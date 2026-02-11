@@ -6655,19 +6655,44 @@
             alert(`Great! Share this link with ${friendName}. When they sign up using your link, you'll both earn rewards!`);
         }
 
+        // Deduplicate referrals based on content to prevent duplicate/triplicate display.
+        // Duplicates can occur when the same athlete exists under multiple Firebase keys
+        // (e.g., push ID entries and sanitized name entries), or when the consolidation
+        // merge creates duplicate referral entries with different IDs but identical content.
+        function deduplicateReferrals(referrals) {
+            const seen = new Set();
+            return referrals.filter(ref => {
+                // Skip entries that aren't valid referral objects
+                if (!ref || typeof ref !== 'object' || !ref.friendName || !ref.dateReferred) {
+                    return false;
+                }
+                const key = [
+                    (ref.friendName || '').trim().toLowerCase(),
+                    (ref.referrerCode || '').trim().toLowerCase(),
+                    ref.dateReferred || ''
+                ].join('|');
+                if (seen.has(key)) {
+                    return false;
+                }
+                seen.add(key);
+                return true;
+            });
+        }
+
         // Load user referrals (for athletes)
         function loadUserReferrals(accessCode) {
             const referralsRef = firebase.database().ref('athletes/' + sanitizeFirebaseKey(accessCode) + '/referrals');
 
             referralsRef.once('value').then((snapshot) => {
-                const referrals = [];
+                let referrals = [];
                 snapshot.forEach((childSnapshot) => {
                     const referral = childSnapshot.val();
                     referral.id = childSnapshot.key;
                     referrals.push(referral);
                 });
 
-                // Sort by date (newest first)
+                // Deduplicate and sort by date (newest first)
+                referrals = deduplicateReferrals(referrals);
                 referrals.sort((a, b) => new Date(b.dateReferred) - new Date(a.dateReferred));
 
                 // Update gamified rewards journey UI
@@ -6705,14 +6730,15 @@
             const referralsRef = firebase.database().ref('organizations/' + sanitizeFirebaseKey(orgName) + '/referrals');
 
             referralsRef.once('value').then((snapshot) => {
-                const referrals = [];
+                let referrals = [];
                 snapshot.forEach((childSnapshot) => {
                     const referral = childSnapshot.val();
                     referral.id = childSnapshot.key;
                     referrals.push(referral);
                 });
 
-                // Sort by date (newest first)
+                // Deduplicate and sort by date (newest first)
+                referrals = deduplicateReferrals(referrals);
                 referrals.sort((a, b) => new Date(b.dateReferred) - new Date(a.dateReferred));
 
                 // Update gamified rewards journey UI
@@ -6761,11 +6787,16 @@
             athletesRef.once('value').then((snapshot) => {
                 snapshot.forEach((athleteSnapshot) => {
                     const athleteCode = athleteSnapshot.key;
-                    const referrals = athleteSnapshot.val().referrals;
+                    const athleteData = athleteSnapshot.val();
+                    const referrals = athleteData.referrals;
 
                     if (referrals) {
                         Object.keys(referrals).forEach(refId => {
                             const ref = referrals[refId];
+                            // Skip entries that aren't valid referral objects
+                            if (!ref || typeof ref !== 'object' || !ref.friendName) {
+                                return;
+                            }
                             allReferralsData.push({
                                 id: refId,
                                 referrerCode: athleteCode,
@@ -6786,6 +6817,10 @@
                     if (referrals) {
                         Object.keys(referrals).forEach(refId => {
                             const ref = referrals[refId];
+                            // Skip entries that aren't valid referral objects
+                            if (!ref || typeof ref !== 'object' || !ref.friendName) {
+                                return;
+                            }
                             allReferralsData.push({
                                 id: refId,
                                 referrerCode: orgName,
@@ -6795,6 +6830,9 @@
                         });
                     }
                 });
+
+                // Deduplicate referrals (same friend + referrer + date = same referral)
+                allReferralsData = deduplicateReferrals(allReferralsData);
 
                 // Sort by date (newest first)
                 allReferralsData.sort((a, b) => new Date(b.dateReferred) - new Date(a.dateReferred));
