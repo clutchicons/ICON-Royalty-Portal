@@ -1719,13 +1719,14 @@
                                 <thead>
                                     <tr>
                                         <th>Athlete Name</th>
+                                        <th>Signup Date</th>
                                         <th>Total Sales</th>
                                         <th>Total Royalties</th>
                                         <th>Notes</th>
                                     </tr>
                                 </thead>
                                 <tbody id="taggedAthletesTable">
-                                    <tr><td colspan="4" style="text-align: center; color: #666;">No athletes tagged with this organization</td></tr>
+                                    <tr><td colspan="5" style="text-align: center; color: #666;">No athletes tagged with this organization</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -2457,24 +2458,48 @@
 
     <!-- Organization: View Athletes Modal -->
     <div id="viewOrgAthletesModal" class="modal">
-        <div class="modal-content" style="max-width: 800px;">
+        <div class="modal-content" style="max-width: 950px;">
             <span class="close" onclick="closeViewOrgAthletesModal()">&times;</span>
             <h2 class="modal-header">Organization Athletes: <span id="viewOrgAthletesName"></span></h2>
+            <input type="hidden" id="viewOrgAthletesOrgId" value="">
 
-            <div id="viewOrgAthletesContainer" style="max-height: 400px; overflow-y: auto; margin-top: 20px;">
+            <div id="viewOrgAthletesContainer" style="max-height: 500px; overflow-y: auto; margin-top: 20px;">
                 <table>
                     <thead>
                         <tr>
                             <th>Athlete Name</th>
+                            <th>Signup Date</th>
                             <th>Total Sales</th>
                             <th>Total Royalties</th>
-                            <th style="min-width: 200px;">Admin Notes</th>
+                            <th style="min-width: 150px;">Admin Notes</th>
+                            <th style="width: 70px;">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="viewOrgAthletesTableBody">
                         <!-- Will be populated by JavaScript -->
                     </tbody>
                 </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Org Athlete Modal -->
+    <div id="editOrgAthleteModal" class="modal">
+        <div class="modal-content" style="max-width: 550px;">
+            <span class="close" onclick="closeEditOrgAthleteModal()">&times;</span>
+            <h2 class="modal-header">Edit Athlete: <span id="editOrgAthleteName"></span></h2>
+            <input type="hidden" id="editOrgAthleteKey" value="">
+
+            <div style="display: flex; flex-direction: column; gap: 18px; margin-top: 20px;">
+                <div>
+                    <label style="display:block;font-weight:600;margin-bottom:5px;">Signup Date</label>
+                    <input type="date" id="editOrgAthleteSignupDate" style="width:100%;padding:10px;border:2px solid #e0e0e0;border-radius:4px;box-sizing:border-box;">
+                </div>
+                <div>
+                    <label style="display:block;font-weight:600;margin-bottom:5px;">Admin Notes</label>
+                    <textarea id="editOrgAthleteNotes" rows="4" style="width:100%;padding:10px;border:2px solid #e0e0e0;border-radius:4px;box-sizing:border-box;resize:vertical;"></textarea>
+                </div>
+                <button class="btn" onclick="saveOrgAthleteEdits()" style="background:#28a745;max-width:200px;">Save Changes</button>
             </div>
         </div>
     </div>
@@ -2525,6 +2550,7 @@
         // Organization functionality variables
         let allOrganizations = {};
         let athleteOrganizations = {};
+        let athleteOrgMeta = {}; // { sanitizedName: { signupDate: '2025-01-15' } }
         let selectedAthleteForTag = null;
         let currentOrganization = null;
         let currentLoginType = 'athlete';
@@ -3956,9 +3982,11 @@
                 // Load organization data for admin
                 loadAllOrganizations().then(() => {
                     loadAthleteOrganizations().then(() => {
-                        refreshOrganizationsTable();
-                        populateOrganizationSelects();
-                        initReportDropdowns();
+                        loadAthleteOrgMeta().then(() => {
+                            refreshOrganizationsTable();
+                            populateOrganizationSelects();
+                            initReportDropdowns();
+                        });
                     });
                 });
                 // Load all referrals for admin
@@ -5197,6 +5225,20 @@
                     name => athleteOrganizations[name] === orgId
                 );
 
+                // Count athlete signups for this month using athleteOrgMeta
+                const monthSignups = [];
+                taggedAthletes.forEach(athleteName => {
+                    const sanitizedName = sanitizeFirebaseKey(athleteName);
+                    const meta = athleteOrgMeta[sanitizedName] || {};
+                    if (meta.signupDate) {
+                        const d = new Date(meta.signupDate + 'T00:00:00');
+                        if (d.getFullYear() === year && (d.getMonth() + 1) === month) {
+                            monthSignups.push({ athleteName, signupDate: meta.signupDate });
+                        }
+                    }
+                });
+                const signupPayout = monthSignups.length * referralBonus;
+
                 // Get athlete sales for month
                 let athleteSales = (allData || []).filter(row => {
                     if (!row.created_at) return false;
@@ -5226,12 +5268,14 @@
 
                     const successReferrals = monthReferrals.filter(r => r.status === 'success');
                     const pendingReferrals = monthReferrals.filter(r => r.status === 'pending');
-                    const referralPayout = successReferrals.length * referralBonus;
 
                     orgReports.push({
                         orgId: orgId,
                         orgName: orgName,
                         taggedAthletes: taggedAthletes.length,
+                        monthSignups: monthSignups,
+                        signupBonus: referralBonus,
+                        signupPayout: signupPayout,
                         totalSales: athleteSales.length,
                         totalRoyalty: totalRoyalty,
                         bonusPct: bonusPct,
@@ -5239,10 +5283,8 @@
                         totalReferrals: monthReferrals.length,
                         successReferrals: successReferrals.length,
                         pendingReferrals: pendingReferrals.length,
-                        referralBonus: referralBonus,
-                        referralPayout: referralPayout,
-                        totalPayout: orgBonus + referralPayout,
-                        referralDetails: monthReferrals
+                        referralDetails: monthReferrals,
+                        totalPayout: orgBonus + signupPayout
                     });
                 });
             });
@@ -5253,8 +5295,9 @@
                 // Calculate totals
                 const totalSales = orgReports.reduce((s, r) => s + r.totalSales, 0);
                 const totalBonus = orgReports.reduce((s, r) => s + r.orgBonus, 0);
+                const totalSignups = orgReports.reduce((s, r) => s + r.monthSignups.length, 0);
+                const totalSignupPay = orgReports.reduce((s, r) => s + r.signupPayout, 0);
                 const totalRefs = orgReports.reduce((s, r) => s + r.totalReferrals, 0);
-                const totalRefPay = orgReports.reduce((s, r) => s + r.referralPayout, 0);
                 const totalPayout = orgReports.reduce((s, r) => s + r.totalPayout, 0);
 
                 lastReportType = 'organization';
@@ -5264,11 +5307,11 @@
                     lastReportData = orgReports.map(r => ({
                         organization: r.orgName,
                         athletes: r.taggedAthletes,
+                        newSignups: r.monthSignups.length,
+                        signupPayout: r.signupPayout,
                         sales: r.totalSales,
                         salesBonus: r.orgBonus,
                         referrals: r.totalReferrals,
-                        successRefs: r.successReferrals,
-                        referralPayout: r.referralPayout,
                         totalPayout: r.totalPayout
                     }));
 
@@ -5277,52 +5320,71 @@
 
                     document.getElementById('reportSummary').innerHTML =
                         reportStatCard('Organizations', orgReports.length) +
+                        reportStatCard('New Signups', totalSignups) +
+                        reportStatCard('Signup Pay', '$' + totalSignupPay.toFixed(2)) +
                         reportStatCard('Total Sales', totalSales) +
                         reportStatCard('Sales Bonus', '$' + totalBonus.toFixed(2)) +
-                        reportStatCard('Referrals', totalRefs) +
-                        reportStatCard('Referral Pay', '$' + totalRefPay.toFixed(2)) +
                         reportStatCard('Total Payout', '$' + totalPayout.toFixed(2));
 
                     const thead = document.getElementById('reportTableHead');
                     const tbody = document.getElementById('reportTableBody');
-                    thead.innerHTML = '<tr><th>Organization</th><th>Athletes</th><th>Sales</th><th style="text-align:right;">Sales Bonus</th><th>Referrals</th><th>Successful</th><th style="text-align:right;">Referral Pay</th><th style="text-align:right;">Total Payout</th></tr>';
+                    thead.innerHTML = '<tr><th>Organization</th><th>Athletes</th><th>New Signups</th><th style="text-align:right;">Signup Pay</th><th>Sales</th><th style="text-align:right;">Sales Bonus</th><th>Referrals</th><th style="text-align:right;">Total Payout</th></tr>';
                     tbody.innerHTML = lastReportData.map(r =>
-                        `<tr><td>${r.organization}</td><td>${r.athletes}</td><td>${r.sales}</td><td style="text-align:right;">$${r.salesBonus.toFixed(2)}</td><td>${r.referrals}</td><td>${r.successRefs}</td><td style="text-align:right;">$${r.referralPayout.toFixed(2)}</td><td style="text-align:right;font-weight:600;">$${r.totalPayout.toFixed(2)}</td></tr>`
+                        `<tr><td>${r.organization}</td><td>${r.athletes}</td><td>${r.newSignups}</td><td style="text-align:right;">$${r.signupPayout.toFixed(2)}</td><td>${r.sales}</td><td style="text-align:right;">$${r.salesBonus.toFixed(2)}</td><td>${r.referrals}</td><td style="text-align:right;font-weight:600;">$${r.totalPayout.toFixed(2)}</td></tr>`
                     ).join('') || '<tr><td colspan="8" style="text-align:center;padding:20px;color:#999;">No activity for this month.</td></tr>';
                 } else {
                     // Single org detailed view
                     const r = orgReports[0];
 
-                    lastReportData = r.referralDetails.map(ref => ({
-                        friendName: ref.friendName || 'N/A',
-                        instagram: ref.friendInstagram || '',
-                        date: ref.dateReferred ? new Date(ref.dateReferred).toLocaleDateString() : 'N/A',
-                        status: ref.status || 'pending',
-                        bonus: ref.status === 'success' ? r.referralBonus : 0
-                    }));
+                    // Build combined table: signups first, then referrals
+                    lastReportData = [];
+
+                    r.monthSignups.forEach(s => {
+                        lastReportData.push({
+                            type: 'Signup',
+                            name: s.athleteName,
+                            detail: 'Athlete signup',
+                            date: new Date(s.signupDate + 'T00:00:00').toLocaleDateString(),
+                            status: 'success',
+                            bonus: r.signupBonus
+                        });
+                    });
+
+                    r.referralDetails.forEach(ref => {
+                        lastReportData.push({
+                            type: 'Referral',
+                            name: ref.friendName || 'N/A',
+                            detail: ref.friendInstagram || '',
+                            date: ref.dateReferred ? new Date(ref.dateReferred).toLocaleDateString() : 'N/A',
+                            status: ref.status || 'pending',
+                            bonus: 0
+                        });
+                    });
 
                     document.getElementById('reportTitle').textContent = r.orgName + ' — Organization Report';
-                    document.getElementById('reportSubtitle').textContent = monthName + '  |  Bonus: ' + r.bonusPct + '% on sales  |  $' + r.referralBonus.toFixed(2) + ' per signup';
+                    document.getElementById('reportSubtitle').textContent = monthName + '  |  Bonus: ' + r.bonusPct + '% on sales  |  $' + r.signupBonus.toFixed(2) + ' per signup';
 
                     document.getElementById('reportSummary').innerHTML =
                         reportStatCard('Athletes', r.taggedAthletes) +
+                        reportStatCard('New Signups', r.monthSignups.length) +
+                        reportStatCard('Signup Pay', '$' + r.signupPayout.toFixed(2)) +
                         reportStatCard('Sales', r.totalSales) +
                         reportStatCard('Sales Bonus', '$' + r.orgBonus.toFixed(2)) +
                         reportStatCard('Referrals', r.totalReferrals) +
-                        reportStatCard('Successful', r.successReferrals) +
-                        reportStatCard('Pending', r.pendingReferrals) +
-                        reportStatCard('Referral Pay', '$' + r.referralPayout.toFixed(2)) +
                         reportStatCard('Total Payout', '$' + r.totalPayout.toFixed(2));
 
                     const thead = document.getElementById('reportTableHead');
                     const tbody = document.getElementById('reportTableBody');
-                    thead.innerHTML = '<tr><th>Referred Friend</th><th>Instagram</th><th>Date</th><th>Status</th><th style="text-align:right;">Bonus</th></tr>';
-                    tbody.innerHTML = lastReportData.map(ref => {
-                        const badge = ref.status === 'success'
+                    thead.innerHTML = '<tr><th>Type</th><th>Name</th><th>Detail</th><th>Date</th><th>Status</th><th style="text-align:right;">Bonus</th></tr>';
+                    tbody.innerHTML = lastReportData.map(row => {
+                        const typeBadge = row.type === 'Signup'
+                            ? '<span style="background:#d4edda;color:#155724;padding:3px 8px;border-radius:4px;font-size:0.85em;">Signup</span>'
+                            : '<span style="background:#e2d5f1;color:#4a0e8a;padding:3px 8px;border-radius:4px;font-size:0.85em;">Referral</span>';
+                        const statusBadge = row.status === 'success'
                             ? '<span style="background:#d4edda;color:#155724;padding:3px 8px;border-radius:4px;font-size:0.85em;">Success</span>'
                             : '<span style="background:#fff3cd;color:#856404;padding:3px 8px;border-radius:4px;font-size:0.85em;">Pending</span>';
-                        return `<tr><td>${ref.friendName}</td><td>${ref.instagram}</td><td>${ref.date}</td><td>${badge}</td><td style="text-align:right;">$${ref.bonus.toFixed(2)}</td></tr>`;
-                    }).join('') || '<tr><td colspan="5" style="text-align:center;padding:20px;color:#999;">No referrals for this month.</td></tr>';
+                        return `<tr><td>${typeBadge}</td><td>${row.name}</td><td>${row.detail}</td><td>${row.date}</td><td>${statusBadge}</td><td style="text-align:right;">$${row.bonus.toFixed(2)}</td></tr>`;
+                    }).join('') || '<tr><td colspan="6" style="text-align:center;padding:20px;color:#999;">No activity for this month.</td></tr>';
                 }
 
                 document.getElementById('reportOutput').style.display = 'block';
@@ -5377,16 +5439,16 @@
             } else {
                 const sel = document.getElementById('reportOrg').value;
                 if (sel === 'ALL') {
-                    csv = 'Organization,Athletes,Sales,Sales Bonus,Referrals,Successful Referrals,Referral Payout,Total Payout\n';
+                    csv = 'Organization,Athletes,New Signups,Signup Payout,Sales,Sales Bonus,Referrals,Total Payout\n';
                     lastReportData.forEach(r => {
-                        csv += `"${r.organization}",${r.athletes},${r.sales},${r.salesBonus.toFixed(2)},${r.referrals},${r.successRefs},${r.referralPayout.toFixed(2)},${r.totalPayout.toFixed(2)}\n`;
+                        csv += `"${r.organization}",${r.athletes},${r.newSignups},${r.signupPayout.toFixed(2)},${r.sales},${r.salesBonus.toFixed(2)},${r.referrals},${r.totalPayout.toFixed(2)}\n`;
                     });
                     filename = `all_organizations_report_${monthVal}.csv`;
                 } else {
                     const orgName = allOrganizations[sel] ? allOrganizations[sel].name : sel;
-                    csv = 'Referred Friend,Instagram,Date,Status,Bonus\n';
+                    csv = 'Type,Name,Detail,Date,Status,Bonus\n';
                     lastReportData.forEach(r => {
-                        csv += `"${r.friendName}",${r.instagram},${r.date},${r.status},${r.bonus.toFixed(2)}\n`;
+                        csv += `${r.type},"${r.name}","${r.detail}",${r.date},${r.status},${r.bonus.toFixed(2)}\n`;
                     });
                     filename = `${orgName.replace(/\s+/g, '_')}_report_${monthVal}.csv`;
                 }
@@ -5706,6 +5768,17 @@
             }
         }
 
+        // Load athlete-organization metadata (signup dates, etc.)
+        async function loadAthleteOrgMeta() {
+            try {
+                const snapshot = await database.ref('athleteOrgMeta').once('value');
+                athleteOrgMeta = snapshot.val() || {};
+                console.log('Loaded athlete org meta for', Object.keys(athleteOrgMeta).length, 'athletes');
+            } catch (error) {
+                console.error('Error loading athlete org meta:', error);
+            }
+        }
+
         // Create new organization
         async function createOrganization() {
             const name = document.getElementById('newOrgName').value.trim();
@@ -5905,6 +5978,7 @@
             if (!org) return;
 
             document.getElementById('viewOrgAthletesName').textContent = org.name;
+            document.getElementById('viewOrgAthletesOrgId').value = orgId;
 
             // Get tagged athletes
             const taggedAthletes = Object.keys(athleteOrganizations).filter(
@@ -5915,7 +5989,7 @@
             tbody.innerHTML = '';
 
             if (taggedAthletes.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">No athletes tagged with this organization</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">No athletes tagged with this organization</td></tr>';
             } else {
                 taggedAthletes.forEach(athleteName => {
                     const athleteSales = athleteData[athleteName] || [];
@@ -5925,24 +5999,76 @@
                         totalRoyalties += calculateRoyalty(row);
                     });
 
-                    // Get notes for this athlete
+                    // Get signup date from meta
                     const sanitizedName = sanitizeFirebaseKey(athleteName);
+                    const meta = athleteOrgMeta[sanitizedName] || {};
+                    const signupDate = meta.signupDate
+                        ? new Date(meta.signupDate + 'T00:00:00').toLocaleDateString()
+                        : '<em style="color:#999;">Not set</em>';
+
+                    // Get notes for this athlete
                     const notes = athleteNotes[sanitizedName] || '';
-                    const notesPreview = notes.length > 100 ? notes.substring(0, 100) + '...' : notes;
+                    const notesPreview = notes.length > 80 ? notes.substring(0, 80) + '...' : notes;
                     const notesDisplay = notes ? notesPreview : '<em style="color: #999;">No notes</em>';
 
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
                         <td>${athleteName}</td>
+                        <td>${signupDate}</td>
                         <td>${athleteSales.length}</td>
                         <td>$${Math.round(totalRoyalties)}</td>
                         <td style="font-size: 0.85em; color: #666;">${notesDisplay}</td>
+                        <td><button onclick="openEditOrgAthlete('${athleteName.replace(/'/g, "\\'")}')" style="background:#8a2be2;color:white;border:none;padding:5px 10px;border-radius:4px;cursor:pointer;font-size:0.85em;">Edit</button></td>
                     `;
                     tbody.appendChild(tr);
                 });
             }
 
             document.getElementById('viewOrgAthletesModal').style.display = 'block';
+        }
+
+        function openEditOrgAthlete(athleteName) {
+            const sanitizedName = sanitizeFirebaseKey(athleteName);
+            const meta = athleteOrgMeta[sanitizedName] || {};
+            const notes = athleteNotes[sanitizedName] || '';
+
+            document.getElementById('editOrgAthleteName').textContent = athleteName;
+            document.getElementById('editOrgAthleteKey').value = sanitizedName;
+            document.getElementById('editOrgAthleteSignupDate').value = meta.signupDate || '';
+            document.getElementById('editOrgAthleteNotes').value = notes;
+
+            document.getElementById('editOrgAthleteModal').style.display = 'block';
+        }
+
+        async function saveOrgAthleteEdits() {
+            const sanitizedName = document.getElementById('editOrgAthleteKey').value;
+            const signupDate = document.getElementById('editOrgAthleteSignupDate').value;
+            const notes = document.getElementById('editOrgAthleteNotes').value.trim();
+
+            try {
+                // Save signup date
+                await database.ref('athleteOrgMeta/' + sanitizedName).update({ signupDate: signupDate || null });
+                if (!athleteOrgMeta[sanitizedName]) athleteOrgMeta[sanitizedName] = {};
+                athleteOrgMeta[sanitizedName].signupDate = signupDate || null;
+
+                // Save notes
+                await database.ref('athleteNotes/' + sanitizedName).set(notes || null);
+                athleteNotes[sanitizedName] = notes;
+
+                alert('Changes saved!');
+                closeEditOrgAthleteModal();
+
+                // Refresh the parent modal
+                const orgId = document.getElementById('viewOrgAthletesOrgId').value;
+                if (orgId) viewOrganizationAthletes(orgId);
+            } catch (error) {
+                console.error('Error saving athlete edits:', error);
+                alert('Failed to save changes: ' + error.message);
+            }
+        }
+
+        function closeEditOrgAthleteModal() {
+            document.getElementById('editOrgAthleteModal').style.display = 'none';
         }
 
         // Populate organization selects (for login and tagging)
@@ -6076,6 +6202,14 @@
                 const sanitizedName = sanitizeFirebaseKey(selectedAthleteForTag);
                 await database.ref('athleteOrganizations/' + sanitizedName).set(orgId);
                 athleteOrganizations[sanitizedName] = orgId;
+
+                // Set signup date if not already set
+                if (!athleteOrgMeta[sanitizedName] || !athleteOrgMeta[sanitizedName].signupDate) {
+                    const today = new Date().toISOString().split('T')[0];
+                    await database.ref('athleteOrgMeta/' + sanitizedName).update({ signupDate: today });
+                    if (!athleteOrgMeta[sanitizedName]) athleteOrgMeta[sanitizedName] = {};
+                    athleteOrgMeta[sanitizedName].signupDate = today;
+                }
 
                 alert(`Successfully tagged ${selectedAthleteForTag} with ${allOrganizations[orgId].name}!`);
                 selectAthleteForTag(selectedAthleteForTag); // Refresh display
@@ -6444,6 +6578,7 @@
             try {
                 showLoading(true);
                 await loadPortalData();
+                await loadAthleteOrgMeta();
                 showLoading(false);
             } catch (error) {
                 console.error('Error loading portal data:', error);
@@ -6599,7 +6734,7 @@
             countSpan.textContent = taggedAthletes.length;
 
             if (taggedAthletes.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #666;">No athletes tagged with this organization</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #666;">No athletes tagged with this organization</td></tr>';
                 return;
             }
 
@@ -6613,8 +6748,14 @@
                     totalRoyalties += calculateRoyalty(row);
                 });
 
-                // Get notes for this athlete
+                // Get signup date
                 const sanitizedName = sanitizeFirebaseKey(athleteName);
+                const meta = athleteOrgMeta[sanitizedName] || {};
+                const signupDate = meta.signupDate
+                    ? new Date(meta.signupDate + 'T00:00:00').toLocaleDateString()
+                    : '<em style="color: #999;">—</em>';
+
+                // Get notes for this athlete
                 const notes = athleteNotes[sanitizedName] || '';
                 const notesDisplay = notes
                     ? `<div style="max-width: 300px; white-space: pre-wrap; word-wrap: break-word;">${notes}</div>`
@@ -6623,6 +6764,7 @@
                 tableHTML += `
                     <tr>
                         <td style="font-weight: 600;">${athleteName}</td>
+                        <td style="text-align: center;">${signupDate}</td>
                         <td style="text-align: center;">${athleteSales.length}</td>
                         <td style="text-align: center; color: #8a2be2; font-weight: 600;">$${Math.round(totalRoyalties)}</td>
                         <td style="font-size: 0.9em; color: #666;">${notesDisplay}</td>

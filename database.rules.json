@@ -54,6 +54,10 @@
       ".read": "auth != null",
       ".write": "auth != null && root.child('userRoles/' + auth.uid + '/role').val() === 'admin'"
     },
+    "athleteOrgMeta": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('userRoles/' + auth.uid + '/role').val() === 'admin'"
+    },
     "athleteNotes": {
       ".read": "auth != null",
       ".write": "auth != null && (root.child('userRoles/' + auth.uid + '/role').val() === 'admin' || root.child('userRoles/' + auth.uid + '/role').val() === 'organization')"
