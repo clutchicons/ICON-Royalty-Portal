@@ -1665,7 +1665,7 @@
                                     <label for="referralInstagram" style="display: block; margin-bottom: 5px; font-weight: 500;">Friend's Instagram (optional):</label>
                                     <input type="text" id="referralInstagram" placeholder="@username" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
                                 </div>
-                                <button class="btn" onclick="generateReferralLink()" style="align-self: flex-start;">Generate Referral Link</button>
+                                <button id="generateReferralBtn" class="btn" onclick="generateReferralLink()" style="align-self: flex-start;">Generate Referral Link</button>
                             </div>
 
                             <!-- Generated Link Display -->
@@ -6575,6 +6575,7 @@
         function generateReferralLink() {
             const name = document.getElementById('referralName').value.trim();
             const instagram = document.getElementById('referralInstagram').value.trim();
+            const btn = document.getElementById('generateReferralBtn');
 
             if (!name) {
                 alert('Please enter your friend\'s name');
@@ -6588,46 +6589,77 @@
                 return;
             }
 
-            // Create referral object
-            const referralData = {
-                referrerCode: referrerCode,
-                referrerType: window.currentAccessCode ? 'athlete' : 'organization',
-                friendName: name,
-                friendInstagram: instagram,
-                dateReferred: new Date().toISOString(),
-                status: 'pending'
-            };
+            // Disable button to prevent double submissions
+            btn.disabled = true;
+            btn.textContent = 'Submitting...';
 
-            // Save to Firebase
+            // Check for existing duplicate referral before creating
             const referralsRef = window.currentAccessCode
                 ? firebase.database().ref('athletes/' + sanitizeFirebaseKey(window.currentAccessCode) + '/referrals')
                 : firebase.database().ref('organizations/' + sanitizeFirebaseKey(window.currentOrgName) + '/referrals');
 
-            const newReferralRef = referralsRef.push();
-            newReferralRef.set(referralData).then(() => {
-                // Generate JotForm link with prefilled parameter
-                const jotFormUrl = `https://form.jotform.com/252567263198164?referral=${encodeURIComponent(referrerCode)}`;
+            referralsRef.once('value').then((snapshot) => {
+                const existingReferrals = snapshot.val() || {};
+                const nameLower = name.toLowerCase();
 
-                // Display the link
-                document.getElementById('generatedLink').value = jotFormUrl;
-                document.getElementById('generatedLinkContainer').style.display = 'block';
+                // Check if a referral for this friend already exists
+                const isDuplicate = Object.values(existingReferrals).some(ref =>
+                    ref.friendName && ref.friendName.trim().toLowerCase() === nameLower
+                );
 
-                // Clear form
-                document.getElementById('referralName').value = '';
-                document.getElementById('referralInstagram').value = '';
-
-                // Reload referrals list
-                if (window.currentAccessCode) {
-                    loadUserReferrals(window.currentAccessCode);
-                } else {
-                    loadOrganizationReferrals(window.currentOrgName);
+                if (isDuplicate) {
+                    alert('A referral for "' + name + '" already exists. Each friend can only be referred once.');
+                    btn.disabled = false;
+                    btn.textContent = 'Generate Referral Link';
+                    return;
                 }
 
-                // Show follow-up message
-                showFollowUpMessage(name);
+                // Create referral object
+                const referralData = {
+                    referrerCode: referrerCode,
+                    referrerType: window.currentAccessCode ? 'athlete' : 'organization',
+                    friendName: name,
+                    friendInstagram: instagram,
+                    dateReferred: new Date().toISOString(),
+                    status: 'pending'
+                };
+
+                // Save to Firebase
+                const newReferralRef = referralsRef.push();
+                newReferralRef.set(referralData).then(() => {
+                    // Generate JotForm link with prefilled parameter
+                    const jotFormUrl = `https://form.jotform.com/252567263198164?referral=${encodeURIComponent(referrerCode)}`;
+
+                    // Display the link
+                    document.getElementById('generatedLink').value = jotFormUrl;
+                    document.getElementById('generatedLinkContainer').style.display = 'block';
+
+                    // Clear form
+                    document.getElementById('referralName').value = '';
+                    document.getElementById('referralInstagram').value = '';
+
+                    // Reload referrals list
+                    if (window.currentAccessCode) {
+                        loadUserReferrals(window.currentAccessCode);
+                    } else {
+                        loadOrganizationReferrals(window.currentOrgName);
+                    }
+
+                    // Show follow-up message
+                    showFollowUpMessage(name);
+                }).catch((error) => {
+                    console.error('Error saving referral:', error);
+                    alert('Error generating referral link. Please try again.');
+                }).finally(() => {
+                    // Re-enable button
+                    btn.disabled = false;
+                    btn.textContent = 'Generate Referral Link';
+                });
             }).catch((error) => {
-                console.error('Error saving referral:', error);
+                console.error('Error checking for duplicates:', error);
                 alert('Error generating referral link. Please try again.');
+                btn.disabled = false;
+                btn.textContent = 'Generate Referral Link';
             });
         }
 
