@@ -3567,9 +3567,10 @@
         }
         
         function generatePasswordFromName(athleteName) {
-            // Generate password format: [FirstInitial][LastInitial]2025
+            // Generate password format: [FirstInitial][LastInitial] + current year
             // Handle names like "Admin (View All)" by cleaning them first
             const cleanName = athleteName.replace(/\s*\(.*?\)\s*/g, '').trim();
+            const currentYear = new Date().getFullYear();
 
             // Split the name into parts
             const nameParts = cleanName.split(/\s+/).filter(part => part.length > 0);
@@ -3577,9 +3578,9 @@
             if (nameParts.length < 2) {
                 // If only one name part, use first two letters
                 if (nameParts[0] && nameParts[0].length >= 2) {
-                    return (nameParts[0][0] + nameParts[0][1]).toUpperCase() + '2025';
+                    return (nameParts[0][0] + nameParts[0][1]).toUpperCase() + currentYear;
                 } else if (nameParts[0]) {
-                    return (nameParts[0][0] + nameParts[0][0]).toUpperCase() + '2025';
+                    return (nameParts[0][0] + nameParts[0][0]).toUpperCase() + currentYear;
                 }
                 return null;
             }
@@ -3588,7 +3589,7 @@
             const firstInitial = nameParts[0][0].toUpperCase();
             const lastInitial = nameParts[nameParts.length - 1][0].toUpperCase();
 
-            return firstInitial + lastInitial + '2025';
+            return firstInitial + lastInitial + currentYear;
         }
 
         async function login() {
@@ -3632,7 +3633,7 @@
             console.log('Exact match found:', exactMatch);
 
             const isAdmin = exactMatch === 'Admin (View All)';
-            const ADMIN_PASSWORD = 'ADMIN2025';
+            const ADMIN_PASSWORD = 'ADMIN' + new Date().getFullYear();
             const initialsPassword = generatePasswordFromName(exactMatch);
             const syntheticEmail = nameToEmail(exactMatch);
 
@@ -3738,6 +3739,42 @@
                                 // Don't throw - allow user to proceed anyway
                             }
                         }
+                    }
+                }
+
+                // Ensure athlete record exists in Firebase with access code
+                // This fixes athletes loaded from sales data who have no athlete record
+                if (!isAdmin && isNewAccount) {
+                    try {
+                        const sanitizedName = sanitizeFirebaseKey(exactMatch);
+                        const existingRecord = await database.ref('athletes/' + sanitizedName).once('value');
+                        if (!existingRecord.val()) {
+                            const accessCode = generatePasswordFromName(exactMatch) || code;
+                            await database.ref('athletes/' + sanitizedName).set({
+                                name: exactMatch,
+                                sanitizedName: sanitizedName,
+                                email: '',
+                                createdAt: new Date().toISOString(),
+                                createdFrom: 'auto_login',
+                                asanaProjectId: '',
+                                hasAccessCode: true,
+                                accessCode: accessCode,
+                                totalSales: 0,
+                                organization: null,
+                                uid: user.uid
+                            });
+                            await database.ref('nameMapping/' + sanitizedName).set(exactMatch);
+                            console.log('✅ Created missing athlete record for:', exactMatch);
+                        } else if (!existingRecord.val().accessCode) {
+                            // Record exists but missing access code field
+                            const accessCode = generatePasswordFromName(exactMatch) || code;
+                            await database.ref('athletes/' + sanitizedName + '/accessCode').set(accessCode);
+                            await database.ref('athletes/' + sanitizedName + '/hasAccessCode').set(true);
+                            console.log('✅ Added missing access code for:', exactMatch);
+                        }
+                    } catch (recordError) {
+                        console.warn('Could not create/update athlete record:', recordError);
+                        // Non-blocking - allow login to proceed
                     }
                 }
 
@@ -6247,9 +6284,10 @@
 
         // Manual Athlete Entry Functions
 
-        // Generate default access code from name (e.g., "John Smith" -> "JS2025")
+        // Generate default access code from name (e.g., "John Smith" -> "JS2026")
         function generateAccessCode(name) {
             const nameParts = name.trim().split(/\s+/);
+            const currentYear = new Date().getFullYear();
             let initials = '';
 
             if (nameParts.length >= 2) {
@@ -6260,7 +6298,7 @@
                 initials = nameParts[0].substring(0, 2).toUpperCase();
             }
 
-            return initials + '2025';
+            return initials + currentYear;
         }
 
         // Clear athlete form
