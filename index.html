@@ -3658,11 +3658,25 @@
                         console.log(`Account not found or invalid credential - attempting to create account for ${exactMatch}`);
 
                         // Verify the code is valid before creating account
+                        // Accept both current year and previous year codes for smooth transition
                         const storedPassword = await getStoredPassword(exactMatch);
+                        const currentYear = new Date().getFullYear();
+                        const nameParts = exactMatch.replace(/\s*\(.*?\)\s*/g, '').trim().split(/\s+/).filter(p => p.length > 0);
+                        let initials = '';
+                        if (nameParts.length >= 2) {
+                            initials = (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase();
+                        } else if (nameParts[0] && nameParts[0].length >= 2) {
+                            initials = (nameParts[0][0] + nameParts[0][1]).toUpperCase();
+                        } else if (nameParts[0]) {
+                            initials = (nameParts[0][0] + nameParts[0][0]).toUpperCase();
+                        }
+                        const previousYearPassword = initials ? initials + (currentYear - 1) : null;
+
                         const isValidCode =
                             code === ADMIN_PASSWORD ||
                             (storedPassword && code === storedPassword) ||
-                            (!storedPassword && initialsPassword && code.toUpperCase() === initialsPassword);
+                            (!storedPassword && initialsPassword && code.toUpperCase() === initialsPassword) ||
+                            (!storedPassword && previousYearPassword && code.toUpperCase() === previousYearPassword);
 
                         if (!isValidCode) {
                             alert('Invalid access code. Please try again.');
@@ -3689,12 +3703,37 @@
                             document.getElementById('loginSection').style.display = 'block';
 
                             if (createError.code === 'auth/email-already-in-use') {
-                                // Account exists but password is wrong
-                                console.error('Account exists with different password');
-                                alert('Invalid access code. If you previously set a custom password, please use that password.\n\nIf you forgot your password, contact your administrator.');
-                                return;
+                                // Account exists but password doesn't match - try previous year's password
+                                // This handles the year rollover case (e.g., account created with TS2025, now it's 2026)
+                                console.log('Account exists, trying previous year password variants...');
+                                const passwordsToTry = [previousYearPassword, initialsPassword].filter(Boolean);
+                                if (storedPassword) passwordsToTry.unshift(storedPassword);
+
+                                let signedIn = false;
+                                for (const tryPassword of passwordsToTry) {
+                                    try {
+                                        userCredential = await auth.signInWithEmailAndPassword(syntheticEmail, tryPassword);
+                                        console.log('✅ Signed in with alternative password:', tryPassword);
+                                        signedIn = true;
+
+                                        // Update password to what the user entered so it works next time
+                                        if (tryPassword !== code) {
+                                            await userCredential.user.updatePassword(code);
+                                            console.log('✅ Updated Firebase Auth password to current code');
+                                        }
+                                        break;
+                                    } catch (retryError) {
+                                        console.log('Alternative password failed:', tryPassword);
+                                    }
+                                }
+
+                                if (!signedIn) {
+                                    alert('Invalid access code. If you previously set a custom password, please use that password.\n\nIf you forgot your password, contact your administrator.');
+                                    return;
+                                }
+                            } else {
+                                throw createError;
                             }
-                            throw createError;
                         }
                     } else if (signInError.code === 'auth/wrong-password') {
                         // Wrong password
