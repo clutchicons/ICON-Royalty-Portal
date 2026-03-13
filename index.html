@@ -3702,18 +3702,8 @@
                 }
 
                 if (!signInSucceeded) {
-                    // No existing account matched - check if account exists at all
-                    const accountExists = await emailExistsForName(exactMatch);
-
-                    if (accountExists) {
-                        // Account exists but none of our password candidates worked
-                        // This means it was created with an unknown password (e.g., during testing)
-                        alert('Your account exists but the password does not match any known access code.\n\nPlease contact your administrator to reset your account.');
-                        return;
-                    }
-
-                    // Account doesn't exist - create it (lazy migration)
-                    console.log(`No Firebase Auth account found - creating account for ${exactMatch}`);
+                    // No password variant worked - try creating the account (lazy migration)
+                    console.log(`No sign-in succeeded - attempting to create account for ${exactMatch}`);
                     try {
                         document.getElementById('loginSection').style.display = 'none';
                         showLoading(true, 'Creating Account...', 'Setting up your account, please wait...');
@@ -3731,8 +3721,11 @@
                         document.getElementById('loginSection').style.display = 'block';
 
                         if (createError.code === 'auth/email-already-in-use') {
-                            // Race condition - account was just created between our check and create
-                            alert('Account setup conflict. Please try logging in again.');
+                            // Account exists in Firebase Auth but none of our password candidates matched.
+                            // This means it was created with an unknown password (e.g., during testing).
+                            // The admin needs to delete this user from Firebase Auth console.
+                            console.error('Account exists with unknown password for:', exactMatch, '| Email:', syntheticEmail);
+                            alert('Your account exists but the password does not match any known access code.\n\nAdmin: delete this user from Firebase Authentication console and have them try again.\n\nFirebase Auth email: ' + syntheticEmail);
                         } else if (createError.code === 'auth/weak-password') {
                             alert('Access code must be at least 6 characters.');
                         } else {
