@@ -3730,43 +3730,38 @@
 
                 // Try each candidate
                 let signInSucceeded = false;
+                let signInPassword = null;
                 for (const tryPassword of signInCandidates) {
                     try {
                         userCredential = await auth.signInWithEmailAndPassword(syntheticEmail, tryPassword);
                         signInSucceeded = true;
-                        console.log('✅ Firebase Auth sign-in succeeded');
-
-                        // Always sync Firebase Auth to the canonical password.
-                        // This ensures Auth always matches what the DB says.
-                        if (tryPassword !== canonicalPassword) {
-                            try {
-                                await userCredential.user.updatePassword(canonicalPassword);
-                                console.log('✅ Synced Firebase Auth password to canonical (DB) password');
-                            } catch (syncErr) {
-                                // Non-fatal: Auth password is stale but login still works
-                                console.warn('Could not sync Firebase Auth password:', syncErr.code);
-                            }
-                        }
+                        signInPassword = tryPassword;
+                        console.log('✅ Firebase Auth sign-in succeeded with candidate:', tryPassword === canonicalPassword ? '(canonical)' : '(fallback)');
                         break;
                     } catch (err) {
-                        // Continue to next candidate
+                        console.log('   ❌ Candidate failed:', tryPassword === canonicalPassword ? '(canonical)' : tryPassword.substring(0, 3) + '...', err.code);
+                    }
+                }
+
+                // If signed in with a non-canonical password, sync Firebase Auth to canonical
+                if (signInSucceeded && signInPassword !== canonicalPassword) {
+                    try {
+                        await userCredential.user.updatePassword(canonicalPassword);
+                        console.log('✅ Synced Firebase Auth password to canonical (DB) password');
+                    } catch (syncErr) {
+                        console.warn('⚠️ Could not sync Firebase Auth password:', syncErr.code, syncErr.message);
+                        // This is expected if the session is not fresh enough.
+                        // The password will stay out of sync but login still works
+                        // because we try all candidates every time.
                     }
                 }
 
                 if (!signInSucceeded) {
-                    // No existing account matched - check if account exists at all
-                    const accountExists = await emailExistsForName(exactMatch);
-
-                    if (accountExists) {
-                        // Account exists but Firebase Auth password is completely unknown.
-                        // This can happen if the account was created outside our system.
-                        // The admin needs to delete this account from Firebase Console.
-                        alert('Your account exists but the password is out of sync.\n\nPlease ask your administrator to delete your account from Firebase Console (Authentication tab), then try logging in again.');
-                        return;
-                    }
-
-                    // Account doesn't exist - create it with the canonical password
-                    console.log(`No Firebase Auth account found - creating for ${exactMatch}`);
+                    // Sign-in failed for all candidates. Either the account doesn't exist
+                    // or it exists with a password we can't guess.
+                    // Don't use fetchSignInMethodsForEmail - it's broken by Firebase's
+                    // Email Enumeration Protection. Just try to create the account.
+                    console.log(`Sign-in failed for all candidates. Attempting to create account for ${exactMatch}`);
                     try {
                         document.getElementById('loginSection').style.display = 'none';
                         showLoading(true, 'Creating Account...', 'Setting up your account, please wait...');
@@ -3783,7 +3778,39 @@
                         document.getElementById('loginSection').style.display = 'block';
 
                         if (createError.code === 'auth/email-already-in-use') {
-                            alert('Account setup conflict. Please try logging in again.');
+                            // Account exists but none of our password candidates worked.
+                            // Firebase Auth is stuck with an unknown password.
+                            // Offer to clear the custom password from DB so that on next
+                            // manual account deletion, the default password will be used.
+                            if (isAdmin) {
+                                const shouldReset = confirm(
+                                    'Firebase Auth account exists but the password is out of sync.\n\n' +
+                                    'To fix this:\n' +
+                                    '1. Go to Firebase Console → Authentication\n' +
+                                    '2. Find and delete the account for: ' + syntheticEmail + '\n' +
+                                    '3. Come back here and log in with ' + ADMIN_PASSWORD + '\n\n' +
+                                    'Click OK to also clear any custom password from the database,\n' +
+                                    'or Cancel to keep it.'
+                                );
+                                if (shouldReset && storedPassword) {
+                                    try {
+                                        await setStoredPassword(exactMatch, null);
+                                        await database.ref('customPasswords/' + sanitizeFirebaseKey('Admin')).remove();
+                                        console.log('✅ Cleared custom password from DB');
+                                        alert('Custom password cleared. After deleting the account from Firebase Console, log in with ' + ADMIN_PASSWORD);
+                                    } catch (e) {
+                                        console.warn('Could not clear password:', e);
+                                    }
+                                }
+                            } else {
+                                alert(
+                                    'Your account password is out of sync.\n\n' +
+                                    'Please ask your administrator to:\n' +
+                                    '1. Delete your account from Firebase Console (Authentication tab)\n' +
+                                    '2. Look for: ' + syntheticEmail + '\n\n' +
+                                    'Then try logging in again.'
+                                );
+                            }
                         } else if (createError.code === 'auth/weak-password') {
                             alert('Access code must be at least 6 characters.');
                         } else {
