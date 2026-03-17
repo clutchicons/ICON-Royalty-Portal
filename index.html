@@ -3686,9 +3686,13 @@
                 const signInPasswords = new Set();
                 signInPasswords.add(normalizedCode);
                 signInPasswords.add(code);
+                if (storedPassword) signInPasswords.add(storedPassword);
                 if (initialsPassword) signInPasswords.add(initialsPassword);
                 if (previousYearPassword) signInPasswords.add(previousYearPassword);
-                if (storedPassword) signInPasswords.add(storedPassword);
+                // Always try default passwords as fallback - Firebase Auth may still have the
+                // original password if it was never synced after a custom password change
+                signInPasswords.add(ADMIN_PASSWORD);
+                if (initialsPassword) signInPasswords.add(initialsPassword.toUpperCase());
                 // Also try lowercase variants in case account was created with lowercase input
                 signInPasswords.add(code.toLowerCase());
                 if (initialsPassword) signInPasswords.add(initialsPassword.toLowerCase());
@@ -3702,13 +3706,16 @@
                         console.log('✅ Logged in with password variant:', tryPassword === code ? '(entered code)' : '(alternative)');
                         signInSucceeded = true;
 
-                        // Update password to normalized uppercase version for consistency
-                        if (tryPassword !== normalizedCode) {
+                        // Sync Firebase Auth password to match the entered code so next login works
+                        // This handles the case where a custom password was set in the DB but
+                        // Firebase Auth still had the old default password
+                        const targetPassword = storedPassword || normalizedCode;
+                        if (tryPassword !== targetPassword) {
                             try {
-                                await userCredential.user.updatePassword(normalizedCode);
-                                console.log('✅ Normalized Firebase Auth password to uppercase');
+                                await userCredential.user.updatePassword(targetPassword);
+                                console.log('✅ Synced Firebase Auth password');
                             } catch (updateErr) {
-                                console.warn('Could not update password:', updateErr);
+                                console.warn('Could not sync password:', updateErr);
                             }
                         }
                         break;
@@ -3734,8 +3741,9 @@
                         document.getElementById('loginSection').style.display = 'none';
                         showLoading(true, 'Creating Account...', 'Setting up your account, please wait...');
 
-                        // Always create with normalized uppercase password for consistency
-                        userCredential = await auth.createUserWithEmailAndPassword(syntheticEmail, normalizedCode);
+                        // Create with stored custom password if one exists, otherwise use entered code
+                        const createPassword = storedPassword || normalizedCode;
+                        userCredential = await auth.createUserWithEmailAndPassword(syntheticEmail, createPassword);
                         isNewAccount = true;
                         console.log('✅ Firebase Auth account created successfully');
 
@@ -4439,6 +4447,21 @@
             try {
                 await setStoredPassword(selectedAdminUser, newPassword);
                 allCustomPasswords[sanitizeFirebaseKey(selectedAdminUser)] = newPassword;
+
+                // If admin is changing their own password, also update Firebase Auth
+                if (selectedAdminUser === currentAthlete ||
+                    (selectedAdminUser === 'Admin (View All)' && currentAthlete === 'ALL') ||
+                    (selectedAdminUser === 'Admin' && currentAthlete === 'ALL')) {
+                    try {
+                        const user = auth.currentUser;
+                        if (user) {
+                            await user.updatePassword(newPassword);
+                            console.log('✅ Firebase Auth password updated for current user');
+                        }
+                    } catch (authErr) {
+                        console.warn('Could not update Firebase Auth password:', authErr);
+                    }
+                }
 
                 alert(`Custom password set successfully for ${selectedAdminUser}!`);
                 closeAdminSetPasswordModal();
