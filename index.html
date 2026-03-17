@@ -1744,10 +1744,18 @@
 
                     <div class="collapsible-content" id="adminToolsContent">
                         <!-- Client Counter -->
-                        <div id="adminClientCounter" style="margin-top: 20px; margin-bottom: 25px;">
+                        <div id="adminClientCounter" style="margin-top: 20px; margin-bottom: 25px; display: flex; gap: 15px; flex-wrap: wrap;">
                             <div style="display: inline-block; background: #8a2be2; padding: 20px 30px; border-radius: 8px;">
+                                <div style="font-size: 2.2em; font-weight: bold; color: #ffffff;" id="portalClientsCount">0</div>
+                                <div style="color: #e0c8ff; font-size: 0.9em;">Portal Clients</div>
+                            </div>
+                            <div style="display: inline-block; background: #555; padding: 20px 30px; border-radius: 8px;">
+                                <div style="font-size: 2.2em; font-weight: bold; color: #ffffff;">750</div>
+                                <div style="color: #ccc; font-size: 0.9em;">Legacy Clients</div>
+                            </div>
+                            <div style="display: inline-block; background: #2e7d32; padding: 20px 30px; border-radius: 8px;">
                                 <div style="font-size: 2.2em; font-weight: bold; color: #ffffff;" id="totalClientsCount">0</div>
-                                <div style="color: #e0c8ff; font-size: 0.9em;">Total Clients</div>
+                                <div style="color: #a5d6a7; font-size: 0.9em;">Total Clients</div>
                             </div>
                         </div>
 
@@ -6880,15 +6888,20 @@
         // Update client counter in admin panel
         function updateClientCounter() {
             try {
-                var count = 0;
+                var LEGACY_CLIENTS = 750;
+                var portalCount = 0;
                 if (athletesList && athletesList.length > 0) {
-                    count = athletesList.filter(function(name) {
+                    portalCount = athletesList.filter(function(name) {
                         return name !== 'Admin (View All)';
                     }).length;
                 }
-                var el = document.getElementById('totalClientsCount');
-                if (el) {
-                    el.textContent = count;
+                var portalEl = document.getElementById('portalClientsCount');
+                if (portalEl) {
+                    portalEl.textContent = portalCount;
+                }
+                var totalEl = document.getElementById('totalClientsCount');
+                if (totalEl) {
+                    totalEl.textContent = portalCount + LEGACY_CLIENTS;
                 }
             } catch (e) {
                 console.warn('Could not update client counter:', e);
