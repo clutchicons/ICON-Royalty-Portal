@@ -2810,19 +2810,19 @@
             }
 
             try {
-                // Update Firebase Auth password
-                if (currentUser) {
-                    await currentUser.updatePassword(newPassword);
-                    console.log('✅ Password updated in Firebase Auth');
-                }
+                // Save to database FIRST - this is the source of truth
+                await setStoredPassword(currentAthlete, newPassword);
+                console.log('✅ Password saved to database (source of truth)');
 
-                // Also update in database for backward compatibility (optional, may fail due to permissions)
-                try {
-                    await setStoredPassword(currentAthlete, newPassword);
-                    console.log('✅ Password also saved to database');
-                } catch (dbError) {
-                    console.warn('Could not save password to database (non-critical):', dbError);
-                    // This is not critical - the Firebase Auth password is what matters for login
+                // Then update Firebase Auth to stay in sync
+                if (currentUser) {
+                    try {
+                        await currentUser.updatePassword(newPassword);
+                        console.log('✅ Firebase Auth password synced');
+                    } catch (authErr) {
+                        // Non-critical: Firebase Auth will sync on next login
+                        console.warn('Firebase Auth sync deferred to next login:', authErr.code);
+                    }
                 }
 
                 alert('Password changed successfully!');
@@ -2879,14 +2879,9 @@
                     throw new Error('No authenticated user');
                 }
 
-                // Also update in database for backward compatibility (optional, may fail due to permissions)
-                try {
-                    await setStoredPassword(currentAthlete, newPassword);
-                    console.log('✅ Password also saved to database');
-                } catch (dbError) {
-                    console.warn('Could not save password to database (non-critical):', dbError);
-                    // This is not critical - the Firebase Auth password is what matters for login
-                }
+                // Save to database FIRST - this is the source of truth
+                await setStoredPassword(currentAthlete, newPassword);
+                console.log('✅ Password saved to database (source of truth)');
 
                 alert('Password changed successfully!');
                 closePasswordModal();
@@ -3652,70 +3647,104 @@
             const ADMIN_PASSWORD = 'ADMIN' + new Date().getFullYear();
             const initialsPassword = generatePasswordFromName(exactMatch);
             const syntheticEmail = nameToEmail(exactMatch);
+            const currentYear = new Date().getFullYear();
+            const previousYearPassword = initialsPassword
+                ? initialsPassword.replace(currentYear, currentYear - 1)
+                : null;
 
             console.log('🔐 Firebase Auth Email:', syntheticEmail);
 
             try {
-                // Try to sign in first (most common case)
-                let userCredential;
-                let isNewAccount = false;
-
-                // Build list of valid passwords for this athlete
+                // ===== STEP 1: Determine the canonical password from the database =====
+                // The database (customPasswords/) is the SINGLE source of truth.
+                // Firebase Auth is just a session mechanism that syncs to the DB.
                 const storedPassword = await getStoredPassword(exactMatch);
-                const currentYear = new Date().getFullYear();
-                const previousYearPassword = initialsPassword
-                    ? initialsPassword.replace(currentYear, currentYear - 1)
-                    : null;
-                // Normalize code to uppercase for consistent comparison/storage
-                const normalizedCode = code.toUpperCase();
+                const defaultPassword = isAdmin ? ADMIN_PASSWORD : initialsPassword;
+                const canonicalPassword = storedPassword || defaultPassword;
 
-                // Validate the entered code before any Firebase Auth operations
-                const isValidCode =
-                    code === ADMIN_PASSWORD ||
-                    normalizedCode === ADMIN_PASSWORD ||
-                    (storedPassword && (code === storedPassword || normalizedCode === storedPassword)) ||
-                    (!storedPassword && initialsPassword && normalizedCode === initialsPassword) ||
-                    (!storedPassword && previousYearPassword && normalizedCode === previousYearPassword);
+                console.log('🔐 Has custom password:', !!storedPassword);
+                console.log('🔐 Default password:', defaultPassword);
+
+                // ===== STEP 2: Validate the entered code against DB =====
+                let isValidCode = false;
+
+                if (storedPassword) {
+                    // Custom password exists - must match it exactly
+                    if (code === storedPassword) {
+                        isValidCode = true;
+                    }
+                    // Admin master key always works even with custom password
+                    if (isAdmin && code.toUpperCase() === ADMIN_PASSWORD) {
+                        isValidCode = true;
+                    }
+                } else {
+                    // No custom password - check defaults (case-insensitive)
+                    if (isAdmin && code.toUpperCase() === ADMIN_PASSWORD) {
+                        isValidCode = true;
+                    }
+                    if (initialsPassword && code.toUpperCase() === initialsPassword.toUpperCase()) {
+                        isValidCode = true;
+                    }
+                    if (previousYearPassword && code.toUpperCase() === previousYearPassword.toUpperCase()) {
+                        isValidCode = true;
+                    }
+                }
 
                 if (!isValidCode) {
-                    alert('Invalid access code. Please try again.');
+                    if (storedPassword) {
+                        alert('Invalid access code. A custom password has been set for this account.');
+                    } else {
+                        alert('Invalid access code. Please try again.');
+                    }
                     return;
                 }
 
-                // Build password candidates to try signing in with (order matters - most likely first)
-                const signInPasswords = new Set();
-                signInPasswords.add(normalizedCode);
-                signInPasswords.add(code);
-                if (storedPassword) signInPasswords.add(storedPassword);
-                if (initialsPassword) signInPasswords.add(initialsPassword);
-                if (previousYearPassword) signInPasswords.add(previousYearPassword);
-                // Always try default passwords as fallback - Firebase Auth may still have the
-                // original password if it was never synced after a custom password change
-                signInPasswords.add(ADMIN_PASSWORD);
-                if (initialsPassword) signInPasswords.add(initialsPassword.toUpperCase());
-                // Also try lowercase variants in case account was created with lowercase input
-                signInPasswords.add(code.toLowerCase());
-                if (initialsPassword) signInPasswords.add(initialsPassword.toLowerCase());
-                if (previousYearPassword) signInPasswords.add(previousYearPassword.toLowerCase());
+                // ===== STEP 3: Get a Firebase Auth session =====
+                // We already validated the password against the DB.
+                // Now we just need to get signed in - try every password the account might have.
+                let userCredential;
+                let isNewAccount = false;
 
-                // Try to sign in with each candidate password
+                // Build comprehensive list of passwords Firebase Auth might have
+                const signInCandidates = new Set();
+                // Most likely: the canonical password (what we want Auth to have)
+                signInCandidates.add(canonicalPassword);
+                // What the user entered (in case Auth has this exact value)
+                signInCandidates.add(code);
+                signInCandidates.add(code.toUpperCase());
+                signInCandidates.add(code.toLowerCase());
+                // Stored custom password (should be same as canonical if set)
+                if (storedPassword) signInCandidates.add(storedPassword);
+                // Default passwords the account may have been created with originally
+                signInCandidates.add(ADMIN_PASSWORD);
+                if (initialsPassword) {
+                    signInCandidates.add(initialsPassword);
+                    signInCandidates.add(initialsPassword.toUpperCase());
+                    signInCandidates.add(initialsPassword.toLowerCase());
+                }
+                if (previousYearPassword) {
+                    signInCandidates.add(previousYearPassword);
+                    signInCandidates.add(previousYearPassword.toUpperCase());
+                    signInCandidates.add(previousYearPassword.toLowerCase());
+                }
+
+                // Try each candidate
                 let signInSucceeded = false;
-                for (const tryPassword of signInPasswords) {
+                for (const tryPassword of signInCandidates) {
                     try {
                         userCredential = await auth.signInWithEmailAndPassword(syntheticEmail, tryPassword);
-                        console.log('✅ Logged in with password variant:', tryPassword === code ? '(entered code)' : '(alternative)');
                         signInSucceeded = true;
+                        console.log('✅ Firebase Auth sign-in succeeded');
 
-                        // Sync Firebase Auth password to match the entered code so next login works
-                        // This handles the case where a custom password was set in the DB but
-                        // Firebase Auth still had the old default password
-                        const targetPassword = storedPassword || normalizedCode;
-                        if (tryPassword !== targetPassword) {
+                        // Always sync Firebase Auth to the canonical password.
+                        // This ensures Auth always matches what the DB says.
+                        if (tryPassword !== canonicalPassword) {
                             try {
-                                await userCredential.user.updatePassword(targetPassword);
-                                console.log('✅ Synced Firebase Auth password');
-                            } catch (updateErr) {
-                                console.warn('Could not sync password:', updateErr);
+                                await userCredential.user.updatePassword(canonicalPassword);
+                                console.log('✅ Synced Firebase Auth password to canonical (DB) password');
+                            } catch (syncErr) {
+                                // Non-fatal: Auth password is stale but login still works
+                                console.warn('Could not sync Firebase Auth password:', syncErr.code);
                             }
                         }
                         break;
@@ -3729,23 +3758,22 @@
                     const accountExists = await emailExistsForName(exactMatch);
 
                     if (accountExists) {
-                        // Account exists but none of our password candidates worked
-                        // This means it was created with an unknown password (e.g., during testing)
-                        alert('Your account exists but the password does not match any known access code.\n\nPlease contact your administrator to reset your account.');
+                        // Account exists but Firebase Auth password is completely unknown.
+                        // This can happen if the account was created outside our system.
+                        // The admin needs to delete this account from Firebase Console.
+                        alert('Your account exists but the password is out of sync.\n\nPlease ask your administrator to delete your account from Firebase Console (Authentication tab), then try logging in again.');
                         return;
                     }
 
-                    // Account doesn't exist - create it (lazy migration)
-                    console.log(`No Firebase Auth account found - creating account for ${exactMatch}`);
+                    // Account doesn't exist - create it with the canonical password
+                    console.log(`No Firebase Auth account found - creating for ${exactMatch}`);
                     try {
                         document.getElementById('loginSection').style.display = 'none';
                         showLoading(true, 'Creating Account...', 'Setting up your account, please wait...');
 
-                        // Create with stored custom password if one exists, otherwise use entered code
-                        const createPassword = storedPassword || normalizedCode;
-                        userCredential = await auth.createUserWithEmailAndPassword(syntheticEmail, createPassword);
+                        userCredential = await auth.createUserWithEmailAndPassword(syntheticEmail, canonicalPassword);
                         isNewAccount = true;
-                        console.log('✅ Firebase Auth account created successfully');
+                        console.log('✅ Firebase Auth account created with canonical password');
 
                         // Wait for account and auth token to fully propagate
                         console.log('Waiting for Firebase Auth token to propagate...');
@@ -3755,7 +3783,6 @@
                         document.getElementById('loginSection').style.display = 'block';
 
                         if (createError.code === 'auth/email-already-in-use') {
-                            // Race condition - account was just created between our check and create
                             alert('Account setup conflict. Please try logging in again.');
                         } else if (createError.code === 'auth/weak-password') {
                             alert('Access code must be at least 6 characters.');
@@ -3768,19 +3795,15 @@
 
                 const user = userCredential.user;
 
-                // Get or set role
+                // ===== STEP 4: Set up user role =====
                 let role;
                 let roleData = await getUserRole(user.uid);
 
                 if (roleData) {
-                    // Role already exists
                     role = roleData.role;
                 } else {
-                    // New account - set role in database with retry logic
                     role = isAdmin ? 'admin' : 'athlete';
 
-                    // Retry setting role if it fails (common on first login due to token propagation)
-                    // This is non-blocking - if it fails, we still let the user proceed
                     let roleSetSuccess = false;
                     for (let attempt = 1; attempt <= 5; attempt++) {
                         try {
@@ -3796,14 +3819,12 @@
                                 await new Promise(resolve => setTimeout(resolve, 1500));
                             } else {
                                 console.warn('⚠️ Failed to set user role after 5 attempts. Role will be set on next login.');
-                                // Don't throw - allow user to proceed anyway
                             }
                         }
                     }
                 }
 
-                // Ensure athlete record exists in Firebase with access code
-                // This fixes athletes loaded from sales data who have no athlete record
+                // ===== STEP 5: Ensure athlete record exists =====
                 if (!isAdmin && isNewAccount) {
                     try {
                         const sanitizedName = sanitizeFirebaseKey(exactMatch);
@@ -3826,7 +3847,6 @@
                             await database.ref('nameMapping/' + sanitizedName).set(exactMatch);
                             console.log('✅ Created missing athlete record for:', exactMatch);
                         } else if (!existingRecord.val().accessCode) {
-                            // Record exists but missing access code field
                             const accessCode = generatePasswordFromName(exactMatch) || code;
                             await database.ref('athletes/' + sanitizedName + '/accessCode').set(accessCode);
                             await database.ref('athletes/' + sanitizedName + '/hasAccessCode').set(true);
@@ -3834,51 +3854,40 @@
                         }
                     } catch (recordError) {
                         console.warn('Could not create/update athlete record:', recordError);
-                        // Non-blocking - allow login to proceed
                     }
                 }
 
-                // Store current user state
+                // ===== STEP 6: Show dashboard =====
                 currentUser = user;
                 currentRole = role;
                 currentAthlete = isAdmin ? 'ALL' : exactMatch;
                 window.currentAccessCode = isAdmin ? 'ALL' : exactMatch;
                 window.currentOrgName = null;
 
-                // Show dashboard
                 if (isAdmin || role === 'admin') {
                     await showDashboard('Admin');
-                    // Prompt to change password if using default and new account
-                    if (isNewAccount && (code === ADMIN_PASSWORD || normalizedCode === ADMIN_PASSWORD)) {
+                    if (isNewAccount && !storedPassword) {
                         usedDefaultPassword = true;
                         setTimeout(() => openFirstLoginModal(), 500);
                     }
                 } else {
                     await showDashboard(exactMatch);
-                    // Prompt to change password if using initials password and new account
-                    if (isNewAccount) {
-                        if (!storedPassword && initialsPassword && normalizedCode === initialsPassword) {
-                            usedDefaultPassword = true;
-                            setTimeout(() => openFirstLoginModal(), 500);
-                        }
+                    if (isNewAccount && !storedPassword) {
+                        usedDefaultPassword = true;
+                        setTimeout(() => openFirstLoginModal(), 500);
                     }
                 }
 
             } catch (error) {
                 console.error('Login error:', error);
 
-                // Hide loading and show login section again on error
                 showLoading(false);
                 document.getElementById('loginSection').style.display = 'block';
 
-                if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-                    alert('Invalid access code. Please try again.\n\nIf this is your first login and you keep getting this error, the account may have been created with a different password during testing. Contact your administrator to reset your account.');
-                } else if (error.code === 'auth/too-many-requests') {
+                if (error.code === 'auth/too-many-requests') {
                     alert('Too many failed login attempts. Please try again later or contact your administrator.');
                 } else if (error.code === 'auth/weak-password') {
                     alert('Password must be at least 6 characters.');
-                } else if (error.code === 'auth/email-already-in-use') {
-                    alert('Account setup error. Please try logging in again.');
                 } else {
                     alert('Login failed. Please try again.\n\nError: ' + (error.message || 'Unknown error'));
                 }
@@ -4402,6 +4411,26 @@
                 await database.ref('customPasswords/' + sanitizedName).remove();
                 delete allCustomPasswords[sanitizedName];
 
+                // If resetting own password, also update Firebase Auth to the default
+                const isOwnAccount = selectedAdminUser === currentAthlete ||
+                    (selectedAdminUser === 'Admin (View All)' && currentAthlete === 'ALL') ||
+                    (selectedAdminUser === 'Admin' && currentAthlete === 'ALL');
+                if (isOwnAccount) {
+                    try {
+                        const user = auth.currentUser;
+                        const isAdmin = selectedAdminUser === 'Admin (View All)' || currentAthlete === 'ALL';
+                        const defaultPwd = isAdmin
+                            ? 'ADMIN' + new Date().getFullYear()
+                            : generatePasswordFromName(selectedAdminUser);
+                        if (user && defaultPwd) {
+                            await user.updatePassword(defaultPwd);
+                            console.log('✅ Firebase Auth password reset to default');
+                        }
+                    } catch (authErr) {
+                        console.warn('Could not reset Firebase Auth password:', authErr);
+                    }
+                }
+
                 alert(`Password reset successfully! ${selectedAdminUser} can now login with their default password.`);
                 selectAdminUser(selectedAdminUser); // Refresh display
                 refreshUserStatusTable();
@@ -4463,7 +4492,16 @@
                     }
                 }
 
-                alert(`Custom password set successfully for ${selectedAdminUser}!`);
+                // Determine if this was for the current user or another user
+                const isOwnAccount = selectedAdminUser === currentAthlete ||
+                    (selectedAdminUser === 'Admin (View All)' && currentAthlete === 'ALL') ||
+                    (selectedAdminUser === 'Admin' && currentAthlete === 'ALL');
+
+                if (isOwnAccount) {
+                    alert(`Password updated successfully! Use your new password on next login.`);
+                } else {
+                    alert(`Custom password set for ${selectedAdminUser}. It will take effect on their next login.`);
+                }
                 closeAdminSetPasswordModal();
                 selectAdminUser(selectedAdminUser); // Refresh display
                 refreshUserStatusTable();
