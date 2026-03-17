@@ -1743,14 +1743,6 @@
                     </div>
 
                     <div class="collapsible-content" id="adminToolsContent">
-                        <!-- Client Counter -->
-                        <div id="adminClientCounter" style="margin-top: 20px; margin-bottom: 25px;">
-                            <div style="display: inline-block; background: linear-gradient(135deg, #8a2be2, #6a1cb7); padding: 20px 30px; border-radius: 8px; box-shadow: 0 5px 15px rgba(138, 43, 226, 0.3);">
-                                <div style="font-size: 2.2em; font-weight: bold; color: #ffffff;" id="totalClientsCount">0</div>
-                                <div style="color: rgba(255,255,255,0.85); font-size: 0.9em;">Total Clients</div>
-                            </div>
-                        </div>
-
                         <!-- User Management Section -->
                         <div style="margin-top: 20px;">
                             <h3 style="margin-bottom: 15px;">User Management</h3>
@@ -4057,7 +4049,6 @@
             // Show admin tools panel if user is admin
             if (currentAthlete === 'ALL') {
                 document.getElementById('adminToolsPanel').style.display = 'block';
-                updateClientCounter();
                 loadAllCustomPasswords();
                 refreshUserStatusTable();
                 // Load organization data for admin
@@ -6875,12 +6866,6 @@
 
             content.classList.toggle('open');
             icon.classList.toggle('open');
-        }
-
-        // Update client counter in admin panel
-        function updateClientCounter() {
-            const count = athletesList ? athletesList.length : 0;
-            document.getElementById('totalClientsCount').textContent = count;
         }
 
         // Toggle Admin Tools Collapsible
