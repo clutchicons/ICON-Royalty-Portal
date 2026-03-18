@@ -41,10 +41,7 @@
     },
     "customPasswords": {
       ".read": "auth != null",
-      ".write": "auth != null && (root.child('userRoles/' + auth.uid + '/role').val() === 'admin' || root.child('userRoles/' + auth.uid + '/role').val() === 'super_admin')",
-      "$userName": {
-        ".write": "auth != null && (root.child('userRoles/' + auth.uid + '/role').val() === 'admin' || root.child('userRoles/' + auth.uid + '/role').val() === 'super_admin' || root.child('userRoles/' + auth.uid + '/athleteName').val() === $userName)"
-      }
+      ".write": "auth != null"
     },
     "organizations": {
       ".read": true,
