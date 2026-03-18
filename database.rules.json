@@ -10,6 +10,12 @@
         },
         "referrals": {
           ".write": "auth != null && (root.child('athletes/' + $athleteName + '/uid').val() === auth.uid || root.child('userRoles/' + auth.uid + '/role').val() === 'admin')"
+        },
+        "rewards": {
+          ".write": "auth != null && (root.child('athletes/' + $athleteName + '/uid').val() === auth.uid || root.child('userRoles/' + auth.uid + '/role').val() === 'admin')"
+        },
+        "gemAdjustments": {
+          ".write": "auth != null && (root.child('userRoles/' + auth.uid + '/role').val() === 'admin' || root.child('userRoles/' + auth.uid + '/role').val() === 'super_admin')"
         }
       }
     },
@@ -34,8 +40,11 @@
       ".write": "auth != null && root.child('userRoles/' + auth.uid + '/role').val() === 'admin'"
     },
     "customPasswords": {
-      ".read": "auth != null && (root.child('userRoles/' + auth.uid + '/role').val() === 'admin' || root.child('userRoles/' + auth.uid + '/role').val() === 'super_admin')",
-      ".write": "auth != null && (root.child('userRoles/' + auth.uid + '/role').val() === 'admin' || root.child('userRoles/' + auth.uid + '/role').val() === 'super_admin')"
+      ".read": "auth != null",
+      ".write": "auth != null && (root.child('userRoles/' + auth.uid + '/role').val() === 'admin' || root.child('userRoles/' + auth.uid + '/role').val() === 'super_admin')",
+      "$userName": {
+        ".write": "auth != null && (root.child('userRoles/' + auth.uid + '/role').val() === 'admin' || root.child('userRoles/' + auth.uid + '/role').val() === 'super_admin' || root.child('userRoles/' + auth.uid + '/athleteName').val() === $userName)"
+      }
     },
     "organizations": {
       ".read": true,
