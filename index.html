@@ -3621,35 +3621,10 @@
                 : null;
 
             try {
-                // ===== STEP 1: Validate password against the database =====
-                // The database (customPasswords/) is the SINGLE source of truth.
+                // ===== STEP 1: Get a Firebase Auth session =====
                 // Firebase Auth is just a session mechanism — all accounts use
-                // the same fixed session password (FIREBASE_SESSION_PWD).
-                const storedPassword = await getStoredPassword(exactMatch);
-
-                let isValidCode = false;
-                if (storedPassword) {
-                    if (code === storedPassword) isValidCode = true;
-                    if (isAdmin && code.toUpperCase() === ADMIN_PASSWORD) isValidCode = true;
-                } else {
-                    if (isAdmin && code.toUpperCase() === ADMIN_PASSWORD) isValidCode = true;
-                    if (initialsPassword && code.toUpperCase() === initialsPassword.toUpperCase()) isValidCode = true;
-                    if (previousYearPassword && code.toUpperCase() === previousYearPassword.toUpperCase()) isValidCode = true;
-                }
-
-                if (!isValidCode) {
-                    if (storedPassword) {
-                        alert('Invalid access code. A custom password has been set for this account.');
-                    } else {
-                        alert('Invalid access code. Please try again.');
-                    }
-                    return;
-                }
-
-                // ===== STEP 2: Get a Firebase Auth session =====
-                // Password is already validated above. Firebase Auth is just for
-                // getting a session token. All accounts use FIREBASE_SESSION_PWD.
-                // We also try legacy passwords for accounts created before this change.
+                // the fixed session password. We sign in FIRST so we have auth
+                // to read customPasswords/ from the DB (requires auth in rules).
                 let userCredential;
                 let isNewAccount = false;
 
@@ -3659,7 +3634,6 @@
                 } catch (e) {
                     // Session password didn't work — try legacy passwords for migration
                     const legacyCandidates = new Set();
-                    if (storedPassword) legacyCandidates.add(storedPassword);
                     legacyCandidates.add(ADMIN_PASSWORD);
                     legacyCandidates.add(code);
                     legacyCandidates.add(code.toUpperCase());
@@ -3704,7 +3678,6 @@
                             document.getElementById('loginSection').style.display = 'block';
 
                             if (createError.code === 'auth/email-already-in-use') {
-                                // Account exists with unknown password — only escape is manual deletion
                                 alert(
                                     'Firebase Auth account is stuck with an unknown password.\n\n' +
                                     'To fix:\n' +
@@ -3719,6 +3692,33 @@
                             return;
                         }
                     }
+                }
+
+                // ===== STEP 2: Validate password against the database =====
+                // Now we're authenticated so we can read customPasswords/ (requires auth).
+                // The database is the SINGLE source of truth for passwords.
+                const storedPassword = await getStoredPassword(exactMatch);
+
+                let isValidCode = false;
+                if (storedPassword) {
+                    // Custom password is set — only that password works
+                    if (code === storedPassword) isValidCode = true;
+                } else {
+                    // No custom password — check defaults (case-insensitive)
+                    if (isAdmin && code.toUpperCase() === ADMIN_PASSWORD) isValidCode = true;
+                    if (initialsPassword && code.toUpperCase() === initialsPassword.toUpperCase()) isValidCode = true;
+                    if (previousYearPassword && code.toUpperCase() === previousYearPassword.toUpperCase()) isValidCode = true;
+                }
+
+                if (!isValidCode) {
+                    // Password wrong — sign out immediately
+                    await auth.signOut();
+                    if (storedPassword) {
+                        alert('Invalid access code. A custom password has been set for this account.');
+                    } else {
+                        alert('Invalid access code. Please try again.');
+                    }
+                    return;
                 }
 
                 const user = userCredential.user;
