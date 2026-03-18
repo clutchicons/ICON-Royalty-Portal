@@ -3629,9 +3629,10 @@
 
                 let isValidCode = false;
                 if (storedPassword) {
+                    // Custom password is set — only that password works
                     if (code === storedPassword) isValidCode = true;
-                    if (isAdmin && code.toUpperCase() === ADMIN_PASSWORD) isValidCode = true;
                 } else {
+                    // No custom password — check defaults (case-insensitive)
                     if (isAdmin && code.toUpperCase() === ADMIN_PASSWORD) isValidCode = true;
                     if (initialsPassword && code.toUpperCase() === initialsPassword.toUpperCase()) isValidCode = true;
                     if (previousYearPassword && code.toUpperCase() === previousYearPassword.toUpperCase()) isValidCode = true;
